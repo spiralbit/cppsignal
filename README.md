@@ -4,20 +4,37 @@ A modern C++20 signal processing library modelled on [scipy.signal](https://docs
 
 CppSignal provides a clean function-style API for IIR/FIR filter design, FFT, spectral analysis, peak finding, and signal generation — with no mandatory framework dependencies and an MIT licence suitable for commercial use.
 
+## Table of Contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Building](#building)
+  - [CMake options](#cmake-options)
+- [Code coverage](#code-coverage)
+- [Windows](#windows)
+  - [Code coverage on Windows — OpenCppCoverage](#code-coverage-on-windows--opencppcoverage)
+- [macOS](#macos)
+  - [Code coverage on macOS — gcovr](#code-coverage-on-macos--gcovr)
+- [Linux](#linux)
+  - [Code coverage on Linux — gcovr](#code-coverage-on-linux--gcovr)
+- [Using CppSignal in your project (FetchContent)](#using-cppsignal-in-your-project-fetchcontent)
+- [Project layout](#project-layout)
+- [Licence](#licence)
+
 ## Features
 
-| Category | Functions |
-|----------|-----------|
-| **Filter design** | `butter`, `firwin` |
-| **Filter application** | `sosfilt`, `lfilter` |
-| **Filter analysis** | `freqz` |
-| **FFT** | `fft`, `ifft`, `rfft`, `irfft`, `fftfreq`, `rfftfreq` |
-| **Windows** | `hann_window`, `hamming_window`, `blackman_window`, `kaiser_window`, `flattop_window`, `tukey_window`, `make_window` |
-| **Spectral analysis** | `welch`, `stft`, `spectrogram` |
-| **Signal generation** | `linspace`, `arange`, `sinusoid`, `chirp`, `gausspulse`, `unit_impulse`, `square_wave`, `sawtooth_wave`, `white_noise` |
-| **Peak finding** | `find_peaks`, `peak_prominences` |
-| **Convolution** | `convolve`, `correlate` |
-| **Metrics** | `rms`, `snr`, `thd`, `sinad` |
+| Category               | Functions |
+|------------------------|-----------|
+| **Convolution**        | `convolve`, `correlate` |
+| **FFT**                | `fft`, `ifft`, `rfft`, `irfft`, `fftfreq`, `rfftfreq` |
+| **Filter analysis**    | `freqz` |
+| **Filter&nbsp;application** | `sosfilt`, `lfilter` |
+| **Filter design**      | `butter`, `firwin` |
+| **Metrics**            | `rms`, `snr`, `thd`, `sinad` |
+| **Peak finding**       | `find_peaks`, `peak_prominences` |
+| **Signal generation**  | `linspace`, `arange`, `sinusoid`, `chirp`, `gausspulse`, `unit_impulse`, `square_wave`, `sawtooth_wave`, `white_noise` |
+| **Spectral analysis**  | `welch`, `stft`, `spectrogram` |
+| **Windows**            | `hann_window`, `hamming_window`, `blackman_window`, `kaiser_window`, `flattop_window`, `tukey_window`, `make_window` |
 
 ### Scipy-style API
 
