@@ -32,7 +32,7 @@ CppSignal provides a clean function-style API for IIR/FIR filter design, FFT, sp
 | **Filter design**      | `butter`, `firwin` |
 | **Metrics**            | `rms`, `snr`, `thd`, `sinad` |
 | **Peak finding**       | `find_peaks`, `peak_prominences` |
-| **Signal generation**  | `linspace`, `arange`, `sinusoid`, `chirp`, `gausspulse`, `unit_impulse`, `square_wave`, `sawtooth_wave`, `white_noise` |
+| **Signal&nbsp;generation**  | `linspace`, `arange`, `sinusoid`, `chirp`, `gausspulse`, `unit_impulse`, `square_wave`, `sawtooth_wave`, `white_noise` |
 | **Spectral analysis**  | `welch`, `stft`, `spectrogram` |
 | **Windows**            | `hann_window`, `hamming_window`, `blackman_window`, `kaiser_window`, `flattop_window`, `tukey_window`, `make_window` |
 
