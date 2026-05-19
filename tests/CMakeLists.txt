@@ -1,0 +1,17 @@
+set(CPS_TESTS
+    test_fft
+    test_fft_extended
+    test_windows
+    test_filter_design
+    test_filter_extended
+    test_spectral
+    test_generate
+    test_peaks
+)
+
+foreach(t ${CPS_TESTS})
+    add_executable(${t} ${t}.cpp)
+    target_link_libraries(${t} PRIVATE cppsignal::cppsignal Catch2::Catch2WithMain)
+    target_compile_features(${t} PRIVATE cxx_std_20)
+    add_test(NAME ${t} COMMAND ${t})
+endforeach()
