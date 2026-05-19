@@ -10,7 +10,7 @@ CppSignal provides a clean function-style API for IIR/FIR filter design, FFT, sp
 - [Requirements](#requirements)
 - [Building](#building)
   - [CMake options](#cmake-options)
-- [Code coverage](#code-coverage)
+  - [Code coverage](#code-coverage)
 - [Windows](#windows)
   - [Code coverage on Windows — OpenCppCoverage](#code-coverage-on-windows--opencppcoverage)
 - [macOS](#macos)
@@ -219,7 +219,7 @@ include(FetchContent)
 FetchContent_Declare(
     cppsignal
     GIT_REPOSITORY https://github.com/spiralbit/cppsignal.git
-    GIT_TAG        main
+    GIT_TAG        v0.1.0
 )
 FetchContent_MakeAvailable(cppsignal)
 
