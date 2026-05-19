@@ -201,7 +201,7 @@ cmake --build cppsignal-cov --target coverage
 include(FetchContent)
 FetchContent_Declare(
     cppsignal
-    GIT_REPOSITORY https://github.com/spiral/cppsignal.git
+    GIT_REPOSITORY https://github.com/spiralbit/cppsignal.git
     GIT_TAG        main
 )
 FetchContent_MakeAvailable(cppsignal)
