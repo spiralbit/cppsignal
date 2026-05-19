@@ -7,7 +7,7 @@ CppSignal provides a clean function-style API for IIR/FIR filter design, FFT, sp
 ## Features
 
 | Category | Functions |
-|---|---|
+|----------|-----------|
 | **Filter design** | `butter`, `firwin` |
 | **Filter application** | `sosfilt`, `lfilter` |
 | **Filter analysis** | `freqz` |
@@ -201,7 +201,7 @@ cmake --build cppsignal-cov --target coverage
 include(FetchContent)
 FetchContent_Declare(
     cppsignal
-    GIT_REPOSITORY https://github.com/your-org/cppsignal.git
+    GIT_REPOSITORY https://github.com/spiral/cppsignal.git
     GIT_TAG        main
 )
 FetchContent_MakeAvailable(cppsignal)
