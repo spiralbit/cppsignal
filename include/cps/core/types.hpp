@@ -13,6 +13,7 @@
 #include <string>
 #include <optional>
 #include <cstddef>
+#include <limits>
 
 namespace cps {
 
@@ -100,24 +101,24 @@ struct PeakOptions {
 // ── Welch PSD options ────────────────────────────────────────────────────────
 
 struct WelchOptions {
-    std::size_t nperseg  = 256;           // samples per FFT segment
-    std::size_t noverlap = 0;             // overlap between segments (0 = nperseg/2)
-    Window      window   = Window::Hann;  // window applied to each segment
+    std::size_t                  nperseg  = 256;           // samples per FFT segment
+    std::optional<std::size_t>   noverlap = std::nullopt;  // nullopt = nperseg/2 (50%)
+    Window                       window   = Window::Hann;  // window applied to each segment
     // true  = one-sided (DC to Nyquist, nfft/2+1 bins)
     // false = two-sided (full fftfreq ordering, nfft bins)
-    bool        onesided = true;
+    bool                         onesided = true;
 };
 
 // ── STFT options ─────────────────────────────────────────────────────────────
 
 struct STFTOptions {
-    std::size_t nperseg  = 256;
-    std::size_t noverlap = 0;            // 0 = nperseg/2
-    std::size_t nfft     = 0;           // 0 = nperseg (zero-pad to nfft if > nperseg)
-    Window      window   = Window::Hann;
+    std::size_t                  nperseg  = 256;
+    std::optional<std::size_t>   noverlap = std::nullopt;  // nullopt = nperseg/2 (50%)
+    std::size_t                  nfft     = 0;             // 0 = nperseg (zero-pad if > nperseg)
+    Window                       window   = Window::Hann;
     // true  = one-sided (DC to Nyquist, nfft/2+1 bins)
     // false = two-sided (full fftfreq ordering, nfft bins)
-    bool        onesided = true;
+    bool                         onesided = true;
 };
 
 } // namespace cps

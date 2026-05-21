@@ -367,18 +367,17 @@ TEST_CASE("snr(signal, noise): known ratio of 20 dB", "[metrics]")
     CHECK_THAT(measured, WithinAbs(20.0, 1e-6));
 }
 
-TEST_CASE("snr: pure tone has high SNR (spectral method)", "[metrics]")
+TEST_CASE("snr: pure tone has high SNR", "[metrics]")
 {
-    // A signal that is nearly a pure sine should have high SNR.
-    // N=1000 with fs=1000 puts f0=100 Hz exactly on bin 100 (no leakage).
+    // N=1000, fs=1000 puts f0=100 Hz exactly on bin 100 — no spectral leakage.
     constexpr double fs = 1000.0;
     constexpr double f0 = 100.0;
     constexpr int    N  = 1000;
 
     auto t = linspace(0.0, N / fs, N, false);
     auto x = sinusoid(t, f0, 1.0);
-    double measured = snr(std::span<const Real>(x));
-    CHECK(measured > 40.0);   // >40 dB for a clean integer-bin sine
+    double measured = snr(std::span<const Real>(x), f0, fs);
+    CHECK(measured > 60.0);   // >60 dB for a clean integer-bin sine (only numerical noise)
 }
 
 TEST_CASE("thd: pure sine has very low THD", "[metrics]")
@@ -444,11 +443,11 @@ TEST_CASE("snr throws when noise power is zero", "[metrics][error]")
     CHECK_THROWS_AS(snr(s, n), NumericalError);
 }
 
-TEST_CASE("snr spectral throws for pure DC signal", "[metrics][error]")
+TEST_CASE("snr throws when no signal at fundamental frequency", "[metrics][error]")
 {
-    // DC signal: all FFT power at bin 0, noise power = 0
-    std::vector<Real> dc(64, 1.0);
-    CHECK_THROWS_AS(snr(std::span<const Real>(dc)), NumericalError);
+    // DC signal: no power at f0=100 Hz — fundamental bin is zero
+    std::vector<Real> dc(1000, 1.0);
+    CHECK_THROWS_AS(snr(std::span<const Real>(dc), 100.0, 1000.0), NumericalError);
 }
 
 TEST_CASE("thd throws when no signal at fundamental frequency", "[metrics][error]")
@@ -465,11 +464,16 @@ TEST_CASE("convolve throws for empty inputs", "[correlate][error]")
     CHECK_THROWS_AS(convolve(empty, a), ValueError);
 }
 
-TEST_CASE("convolve Valid throws when len(x) < len(y)", "[correlate][error]")
+TEST_CASE("convolve Valid swaps operands when len(x) < len(y)", "[correlate]")
 {
-    std::vector<Real> x = {1.0, 2.0};
-    std::vector<Real> y = {1.0, 2.0, 3.0};
-    CHECK_THROWS_AS(convolve(x, y, ConvolveMode::Valid), ValueError);
+    // scipy swaps silently; same result as passing the longer sequence first
+    std::vector<Real> x = {1.0, 2.0};           // shorter
+    std::vector<Real> y = {1.0, 2.0, 3.0};      // longer
+    auto result = convolve(x, y, ConvolveMode::Valid);
+    auto expect = convolve(y, x, ConvolveMode::Valid);
+    REQUIRE(result.size() == expect.size());
+    for (std::size_t i = 0; i < result.size(); ++i)
+        CHECK_THAT(result[i], WithinAbs(expect[i], 1e-12));
 }
 
 // ── sawtooth_wave: boundary and negative-time tests ──────────────────────────
@@ -511,11 +515,157 @@ TEST_CASE("square_wave and sawtooth_wave are correct for negative time", "[gener
     }
 }
 
-// ── gausspulse: bw_db validation ─────────────────────────────────────────────
+// ── gausspulse: parameter validation ─────────────────────────────────────────
+
+TEST_CASE("gausspulse throws for fc <= 0", "[generate][error]")
+{
+    auto t = linspace(-0.01, 0.01, 201);
+    CHECK_THROWS_AS(gausspulse(t,  0.0), ValueError);
+    CHECK_THROWS_AS(gausspulse(t, -1.0), ValueError);
+}
+
+TEST_CASE("gausspulse throws for bw <= 0", "[generate][error]")
+{
+    auto t = linspace(-0.01, 0.01, 201);
+    CHECK_THROWS_AS(gausspulse(t, 100.0,  0.0), ValueError);
+    CHECK_THROWS_AS(gausspulse(t, 100.0, -0.1), ValueError);
+}
 
 TEST_CASE("gausspulse throws for bw_db >= 0", "[generate][error]")
 {
     auto t = linspace(-0.01, 0.01, 201);
     CHECK_THROWS_AS(gausspulse(t, 100.0, 0.5,  0.0), ValueError);
     CHECK_THROWS_AS(gausspulse(t, 100.0, 0.5,  1.0), ValueError);
+}
+
+// ── snr: spectral (single-signal) behaviours ──────────────────────────────────
+// These tests cover all distinguishable code paths in the new snr(x, f0, fs)
+// overload. The old snr(x) used max_element to find the strongest bin, which
+// mis-identifies the signal when a harmonic is louder than the fundamental.
+
+TEST_CASE("snr: harmonic louder than fundamental is correctly excluded", "[metrics]")
+{
+    // Generate: 1.0 * sin(100 Hz) + 3.0 * sin(200 Hz)  — harmonic has 9× the power.
+    // Old code picks bin 200 as "signal" and treats bin 100 as noise → wrong result.
+    // New code uses the caller-supplied fundamental (100 Hz) → correct.
+    constexpr double fs = 1000.0;
+    constexpr double f0 = 100.0;
+    constexpr int    N  = 1000;
+    auto t = linspace(0.0, N / fs, N, false);
+    auto x = sinusoid(t, f0, 1.0);
+    auto h = sinusoid(t, 2.0 * f0, 3.0);
+    for (std::size_t i = 0; i < x.size(); ++i) x[i] += h[i];
+
+    // The harmonic (200 Hz) is excluded from the noise floor, so the result
+    // reflects only the ratio of fundamental vs true broadband noise (≈0).
+    double snr_val = snr(std::span<const Real>(x), f0, fs);
+    CHECK(snr_val > 40.0);   // noise ≈ 0 → very high SNR
+}
+
+TEST_CASE("snr: sine plus noise gives lower SNR than pure sine", "[metrics]")
+{
+    // Add uniform noise so SNR should be finite and meaningfully lower than
+    // the pure-tone case.
+    constexpr double fs = 1000.0;
+    constexpr double f0 = 100.0;
+    constexpr int    N  = 1000;
+    auto t = linspace(0.0, N / fs, N, false);
+    auto x = sinusoid(t, f0, 1.0);
+    // Inject a small fixed noise pattern (deterministic — no <random> needed)
+    for (std::size_t i = 0; i < x.size(); ++i)
+        x[i] += 0.05 * std::sin(static_cast<double>(i) * 0.37);  // off-bin tone = noise
+
+    double snr_val = snr(std::span<const Real>(x), f0, fs);
+    CHECK(snr_val > 0.0);    // positive dB: signal stronger than noise
+    CHECK(snr_val < 60.0);   // but noticeably less than the pure-tone case
+}
+
+TEST_CASE("snr throws for invalid fundamental_hz", "[metrics][error]")
+{
+    std::vector<Real> x(256, 0.0);
+    CHECK_THROWS_AS(snr(std::span<const Real>(x),  0.0, 1000.0), ValueError);
+    CHECK_THROWS_AS(snr(std::span<const Real>(x), -1.0, 1000.0), ValueError);
+}
+
+TEST_CASE("snr throws for invalid fs", "[metrics][error]")
+{
+    std::vector<Real> x(256, 0.0);
+    CHECK_THROWS_AS(snr(std::span<const Real>(x), 100.0,  0.0), ValueError);
+    CHECK_THROWS_AS(snr(std::span<const Real>(x), 100.0, -1.0), ValueError);
+}
+
+TEST_CASE("snr throws when no noise component exists", "[metrics][error]")
+{
+    // A 2-sample alternating signal {1, -1} sampled at fs=2 Hz.
+    // rfft gives: spec[0] = 0 (DC = 0 exactly), spec[1] = 2 (Nyquist).
+    // fundamental=1 Hz → fund_bin=1, excluded={1}.
+    // noise_power = norm(spec[0]) = 0 → throws "no noise component detected".
+    std::vector<Real> x = {1.0, -1.0};
+    CHECK_THROWS_AS(snr(std::span<const Real>(x), 1.0, 2.0), NumericalError);
+}
+
+// ── snr: total_power == 0 short-circuit ──────────────────────────────────────
+TEST_CASE("snr all-zeros signal throws via total_power == 0.0 branch", "[metrics][error]")
+{
+    std::vector<Real> x(256, 0.0);
+    CHECK_THROWS_AS(snr(std::span<const Real>(x), 100.0, 1000.0), NumericalError);
+}
+
+// ── thd: error paths ──────────────────────────────────────────────────────────
+TEST_CASE("thd throws for fs <= 0", "[metrics][error]")
+{
+    std::vector<Real> x(256, 0.0);
+    CHECK_THROWS_AS(thd(std::span<const Real>(x), 100.0,  0.0), ValueError);
+    CHECK_THROWS_AS(thd(std::span<const Real>(x), 100.0, -1.0), ValueError);
+}
+
+TEST_CASE("thd throws for n_harmonics < 1", "[metrics][error]")
+{
+    std::vector<Real> x(256, 0.0);
+    CHECK_THROWS_AS(thd(std::span<const Real>(x), 100.0, 1000.0, 0), ValueError);
+}
+
+// ── sinad: error paths ────────────────────────────────────────────────────────
+TEST_CASE("sinad throws for fundamental <= 0", "[metrics][error]")
+{
+    std::vector<Real> x(256, 0.0);
+    CHECK_THROWS_AS(sinad(std::span<const Real>(x),  0.0, 1000.0), ValueError);
+    CHECK_THROWS_AS(sinad(std::span<const Real>(x), -1.0, 1000.0), ValueError);
+}
+
+TEST_CASE("sinad throws for fs <= 0", "[metrics][error]")
+{
+    std::vector<Real> x(256, 0.0);
+    CHECK_THROWS_AS(sinad(std::span<const Real>(x), 100.0,  0.0), ValueError);
+    CHECK_THROWS_AS(sinad(std::span<const Real>(x), 100.0, -1.0), ValueError);
+}
+
+TEST_CASE("sinad: sine plus noise gives finite positive value", "[metrics]")
+{
+    constexpr double fs = 1000.0;
+    constexpr double f0 = 100.0;
+    constexpr int    N  = 1000;
+    auto t = linspace(0.0, N / fs, N, false);
+    auto x = sinusoid(t, f0, 1.0);
+    for (std::size_t i = 0; i < x.size(); ++i)
+        x[i] += 0.05 * std::sin(static_cast<double>(i) * 0.37);  // off-bin noise
+
+    double sinad_val = sinad(std::span<const Real>(x), f0, fs);
+    CHECK(sinad_val > 0.0);    // signal stronger than noise+distortion
+    CHECK(sinad_val < 100.0);  // not unrealistically high
+}
+
+TEST_CASE("sinad throws when all spectral power is at the fundamental (distortion==0)", "[metrics][error]")
+{
+    // {1,-1} at fs=2: all power at Nyquist bin → distortion = total - fund = 0 → throws
+    std::vector<Real> x = {1.0, -1.0};
+    CHECK_THROWS_AS(sinad(std::span<const Real>(x), 1.0, 2.0), NumericalError);
+}
+
+// ── snr: empty signal throws (spectral overload) ──────────────────────────────
+// Covers metrics.hpp:80 true branch: if (x.empty()) throw ValueError(...)
+TEST_CASE("snr throws for empty signal (spectral overload)", "[metrics][error]")
+{
+    std::vector<Real> empty;
+    CHECK_THROWS_AS(snr(std::span<const Real>(empty), 100.0, 1000.0), ValueError);
 }

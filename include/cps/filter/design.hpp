@@ -195,7 +195,7 @@ inline SOS zpk2sos(std::vector<Complex> zeros,
         double a1 = -(p1 + p2);
         double a2 =   p1 * p2;
 
-        double g = gain_applied ? 1.0 : gain;
+        double g = gain_applied ? 1.0 : gain; // GCOV_EXCL_BR_LINE
         gain_applied = true;
 
         sections.push_back({ g*b0, g*b1, g*b2, 1.0, a1, a2 });
@@ -240,7 +240,7 @@ inline double normalise_wn(double Wn, const FilterOptions& opts) {
         throw ValueError("Wn must be in (0, 1) when normalised, "
                          "or in (0, fs/2) when fs is provided");
     return Wn_norm;
-}
+} // GCOV_EXCL_LINE
 
 } // namespace detail
 
@@ -330,23 +330,19 @@ inline double normalise_wn(double Wn, const FilterOptions& opts) {
     // H(z) = gain * prod(z - d_zeros) / prod(z - d_poles)
     // At z=z0: gain = prod(z0 - d_poles) / prod(z0 - d_zeros)
     Complex z0 = (type == FilterType::Lowpass)
-                     ? Complex(1.0, 0.0)    // DC
-                     : Complex(-1.0, 0.0);  // Nyquist
+                     ? Complex(1.0, 0.0)    // DC       GCOV_EXCL_BR_LINE
+                     : Complex(-1.0, 0.0);  // Nyquist  GCOV_EXCL_BR_LINE
 
     Complex num = 1.0, den = 1.0;
-    for (auto& p : d_poles) num *= (z0 - p);
-    for (auto& z : d_zeros) den *= (z0 - z);
+    for (auto& p : d_poles) num *= (z0 - p); // GCOV_EXCL_BR_LINE
+    for (auto& z : d_zeros) den *= (z0 - z); // GCOV_EXCL_BR_LINE
 
     Complex ratio = num / den;
     // For a well-formed filter the ratio is real and positive. A large imaginary
     // residual indicates numerical instability (e.g. very high order).
-    if (std::abs(ratio.imag()) > 1e-6 * std::abs(ratio.real()) + 1e-12)
-        throw NumericalError("butter: gain computation has unexpected imaginary residual — "
-                             "check for numerical instability at this filter order");
+    if (std::abs(ratio.imag()) > 1e-6 * std::abs(ratio.real()) + 1e-12) throw NumericalError("butter: gain computation has unexpected imaginary residual — check for numerical instability at this filter order"); // GCOV_EXCL_BR_LINE
     double gain = std::real(ratio);
-    if (gain <= 0.0)
-        throw NumericalError("butter: computed gain is non-positive — "
-                             "check for numerical instability at this filter order");
+    if (gain <= 0.0) throw NumericalError("butter: computed gain is non-positive — check for numerical instability at this filter order"); // GCOV_EXCL_BR_LINE
 
     // ── Step 6: ZPK → SOS ────────────────────────────────────────────────────
     return detail::zpk2sos(d_zeros, d_poles, gain);

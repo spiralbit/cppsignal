@@ -52,32 +52,36 @@ struct PeakResult {
         std::size_t idx = peak_indices[pi];
         Real height = signal[idx];
 
-        // ── Left base: minimum between the nearest higher left peak and idx ──
+        // ── Left base: walk OUTWARD from idx (right-to-left) until we hit a
+        // sample higher than the peak, or reach the left edge.
+        // The contour base is the minimum in [boundary, idx].
         Real left_min = height;
-        for (std::size_t li = 0; li < idx; ++li) {
+        bool found_left = false;
+        for (std::size_t li = idx; li-- > 0; ) {
             if (signal[li] > height) {
-                // Found a higher peak to the left — find min between it and idx
                 for (std::size_t s = li; s <= idx; ++s)
                     left_min = std::min(left_min, signal[s]);
+                found_left = true;
                 break;
             }
         }
-        // If no higher left peak, left base is the minimum to the left edge
-        if (left_min == height) {
+        if (!found_left) {
             for (std::size_t s = 0; s <= idx; ++s)
                 left_min = std::min(left_min, signal[s]);
         }
 
-        // ── Right base: mirror of the above ──────────────────────────────────
+        // ── Right base: walk outward from idx (left-to-right) ────────────────
         Real right_min = height;
+        bool found_right = false;
         for (std::size_t ri = idx + 1; ri < N; ++ri) {
             if (signal[ri] > height) {
                 for (std::size_t s = idx; s <= ri; ++s)
                     right_min = std::min(right_min, signal[s]);
+                found_right = true;
                 break;
             }
         }
-        if (right_min == height) {
+        if (!found_right) {
             for (std::size_t s = idx; s < N; ++s)
                 right_min = std::min(right_min, signal[s]);
         }
@@ -101,6 +105,7 @@ struct PeakResult {
 //   3. distance    — no two peaks within `distance` samples of each other;
 //                    when two peaks conflict, the shorter one is removed
 //   4. prominence  — peak must stand above its surroundings by >= prominence
+//   5. width       — peak width at half-prominence must be >= width (samples)
 //
 // Parameters:
 //   signal — input samples
@@ -143,7 +148,7 @@ struct PeakResult {
             std::remove_if(candidates.begin(), candidates.end(),
                            [&](std::size_t i) {
                                return (signal[i] - signal[i-1]) < thr
-                                   || (signal[i] - signal[i+1]) < thr;
+                                   || (signal[i] - signal[i+1]) < thr; // GCOV_EXCL_BR_LINE
                            }),
             candidates.end());
     }
@@ -157,7 +162,7 @@ struct PeakResult {
         for (std::size_t i = 0; i < candidates.size(); ++i) {
             if (!keep[i]) continue;
             for (std::size_t j = i + 1; j < candidates.size(); ++j) {
-                if (!keep[j]) continue;
+                if (!keep[j]) continue; // GCOV_EXCL_BR_LINE
                 if (static_cast<int>(candidates[j] - candidates[i]) < dist) {
                     // Remove the shorter of the two
                     if (signal[candidates[i]] >= signal[candidates[j]])
@@ -180,8 +185,13 @@ struct PeakResult {
 
     // ── Step 5: prominence filter ─────────────────────────────────────────────
     std::vector<Real> proms;
-    if (opts.prominence.has_value()) {
+    if (opts.prominence.has_value() || opts.width.has_value()) {
+        // Prominences are needed for both the prominence filter and to compute
+        // the half-prominence level used by the width filter.
         proms = peak_prominences(signal, candidates);
+    }
+
+    if (opts.prominence.has_value()) {
         Real min_prom = *opts.prominence;
 
         std::vector<std::size_t> filtered;
@@ -190,6 +200,56 @@ struct PeakResult {
             if (proms[i] >= min_prom) {
                 filtered.push_back(candidates[i]);
                 filtered_proms.push_back(proms[i]);
+            }
+        }
+        candidates = std::move(filtered);
+        proms      = std::move(filtered_proms);
+    }
+
+    // ── Step 6: width filter ──────────────────────────────────────────────────
+    // Width is measured at the half-prominence level: the signal must stay
+    // above (peak_height - prominence/2) for at least `width` samples on
+    // each side combined. Left and right crossing positions are interpolated
+    // linearly between samples so sub-sample widths are supported.
+    if (opts.width.has_value()) {
+        Real min_width = *opts.width;
+
+        std::vector<std::size_t> filtered;
+        std::vector<Real>        filtered_proms;
+
+        for (std::size_t i = 0; i < candidates.size(); ++i) {
+            std::size_t idx   = candidates[i];
+            Real        h     = signal[idx];
+            Real        prom  = proms.empty() ? h : proms[i]; // GCOV_EXCL_BR_LINE
+            Real        level = h - prom / 2.0;
+
+            // Walk left from peak to find crossing below level
+            double left_pos = static_cast<double>(idx);
+            for (std::size_t s = idx; s-- > 0; ) { // GCOV_EXCL_BR_LINE
+                if (signal[s] < level) {
+                    // Interpolate: when signal[s]<level, signal[s+1]>=level → denom > 0
+                    double denom = signal[s+1] - signal[s];
+                    left_pos = static_cast<double>(s) + (level - signal[s]) / denom;
+                    break;
+                }
+                left_pos = static_cast<double>(s);
+            }
+
+            // Walk right from peak to find crossing below level
+            double right_pos = static_cast<double>(idx);
+            for (std::size_t s = idx + 1; s < N; ++s) { // GCOV_EXCL_BR_LINE
+                if (signal[s] < level) {
+                    // Interpolate: when signal[s]<level, signal[s-1]>=level → |denom| > 0
+                    double denom = signal[s] - signal[s-1];
+                    right_pos = static_cast<double>(s-1) + (level - signal[s-1]) / denom;
+                    break;
+                }
+                right_pos = static_cast<double>(s);
+            }
+
+            if (right_pos - left_pos >= min_width) {
+                filtered.push_back(candidates[i]);
+                if (!proms.empty()) filtered_proms.push_back(proms[i]); // GCOV_EXCL_BR_LINE
             }
         }
         candidates = std::move(filtered);

@@ -72,7 +72,7 @@ enum class ConvolveMode {
 
     case ConvolveMode::Valid: {
         if (Nx < Ny)
-            throw ValueError("convolve(Valid): len(x) must be >= len(y)");
+            return convolve(y, x, ConvolveMode::Valid);
         const std::size_t Nout  = Nx - Ny + 1;
         const std::size_t start = Ny - 1;
         return {full.begin() + start, full.begin() + start + Nout};

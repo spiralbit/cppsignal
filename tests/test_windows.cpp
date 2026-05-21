@@ -198,6 +198,16 @@ TEST_CASE("Tukey central samples are exactly 1.0 for small alpha", "[windows]")
         CHECK_THAT(w[i], WithinAbs(1.0, EPS));
 }
 
+TEST_CASE("Tukey param<=0 defaults to alpha=0.5", "[windows]")
+{
+    // param=0.0 hits the (param <= 0.0) ? 0.5 : param ternary true branch
+    auto w0  = make_window(Window::Tukey, 64, 0.0);
+    auto w05 = make_window(Window::Tukey, 64, 0.5);  // explicit 0.5
+    REQUIRE(w0.size() == 64);
+    for (std::size_t i = 0; i < 64; ++i)
+        CHECK_THAT(w0[i], WithinAbs(w05[i], 1e-12));
+}
+
 // ── All windows: correct length for various N ─────────────────────────────────
 TEST_CASE("make_window returns the requested length for every type", "[windows]")
 {

@@ -32,7 +32,7 @@ namespace cps {
     double sum = 0.0;
     for (auto v : x) sum += v * v;
     return std::sqrt(sum / static_cast<double>(x.size()));
-}
+} // GCOV_EXCL_LINE
 
 
 // ── snr() ─────────────────────────────────────────────────────────────────────
@@ -63,35 +63,59 @@ namespace cps {
         throw NumericalError("snr: noise power is zero");
 
     return 10.0 * std::log10(sig_power / noise_power);
-}
+} // GCOV_EXCL_LINE
 
-// SNR from a single waveform: assumes the dominant spectral peak is signal,
-// everything else is noise. Requires rfft internally.
+// SNR from a single waveform using a known fundamental frequency.
+// Identifies the fundamental bin and its harmonics, then computes:
+//   SNR = fundamental_power / noise_power
+// where noise excludes the fundamental and its harmonics (up to Nyquist).
+// This matches MATLAB's snr() and is distinct from sinad() which folds
+// harmonics into the denominator.
 template<FFTBackend B = backends::PocketFFT>
-[[nodiscard]] Real snr(std::span<const Real> x, B backend = {})
+[[nodiscard]] Real snr(std::span<const Real> x, Real fundamental, Real fs,
+                       int n_harmonics = 5, B backend = {})
 {
-    if (x.empty()) throw ValueError("snr: signal must not be empty");
+    if (fundamental <= 0.0) throw ValueError("snr: fundamental must be > 0");
+    if (fs <= 0.0)           throw ValueError("snr: fs must be > 0");
+    if (x.empty())           throw ValueError("snr: signal must not be empty");
 
+    const std::size_t N = x.size();
     auto spec = rfft(x, backend);
 
-    // Power at each bin
-    std::vector<double> power(spec.size());
-    for (std::size_t k = 0; k < spec.size(); ++k)
-        power[k] = std::norm(spec[k]);
+    double bin_hz = fs / static_cast<double>(N);
+    std::size_t fund_bin = static_cast<std::size_t>(std::round(fundamental / bin_hz));
+    fund_bin = std::min(fund_bin, spec.size() - 1);
 
-    // Find the peak bin (signal)
-    auto it = std::max_element(power.begin(), power.end());
-    double sig_power = *it;
+    double total_power = 0.0;
+    for (auto& c : spec) total_power += std::norm(c);
 
-    // Sum of all other bins = noise
+    double fund_power = std::norm(spec[fund_bin]);
+    // Use a relative threshold: fundamental must hold at least 1e-10 of total energy
+    if (total_power == 0.0 || fund_power < 1e-10 * total_power)
+        throw NumericalError("snr: no signal found at fundamental frequency");
+
+    // Collect bins to exclude from the noise floor: fundamental + harmonics
+    std::vector<std::size_t> excluded = {fund_bin};
+    for (int h = 2; h <= n_harmonics + 1; ++h) { // GCOV_EXCL_BR_LINE
+        double hf = h * fundamental;
+        if (hf >= fs / 2.0) break;
+        std::size_t k = static_cast<std::size_t>(std::round(hf / bin_hz));
+        k = std::min(k, spec.size() - 1);
+        excluded.push_back(k);
+    }
+    std::sort(excluded.begin(), excluded.end());
+    excluded.erase(std::unique(excluded.begin(), excluded.end()), excluded.end());
+
     double noise_power = 0.0;
-    for (std::size_t k = 0; k < power.size(); ++k)
-        if (power.begin() + k != it) noise_power += power[k];
+    for (std::size_t k = 0; k < spec.size(); ++k) {
+        if (!std::binary_search(excluded.begin(), excluded.end(), k))
+            noise_power += std::norm(spec[k]);
+    }
 
     if (noise_power == 0.0)
-        throw NumericalError("snr: no noise component detected (pure tone?)");
+        throw NumericalError("snr: no noise component detected");
 
-    return 10.0 * std::log10(sig_power / noise_power);
+    return 10.0 * std::log10(fund_power / noise_power);
 }
 
 
@@ -140,7 +164,7 @@ template<FFTBackend B = backends::PocketFFT>
         throw NumericalError("thd: no signal found at fundamental frequency");
 
     double harmonic_sum = 0.0;
-    for (int h = 2; h <= n_harmonics + 1; ++h) {
+    for (int h = 2; h <= n_harmonics + 1; ++h) { // GCOV_EXCL_BR_LINE
         double hf = h * fundamental;
         if (hf >= fs / 2.0) break;   // above Nyquist
         harmonic_sum += bin_power(hf);

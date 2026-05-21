@@ -179,6 +179,16 @@ TEST_CASE("find_peaks threshold filter removes peaks with small rise above neigh
     CHECK(result.indices[0] == 5);
 }
 
+// ── find_peaks: threshold filter short-circuit (left rise fails first) ────────
+// Covers the peaks.hpp lambda || path where the first operand is TRUE → short-circuit.
+// rise_left = 5-3 = 2 < threshold=3 → first operand true → lambda returns immediately.
+TEST_CASE("find_peaks threshold: left-rise failure short-circuits", "[peaks]")
+{
+    std::vector<Real> x = {4.0, 3.0, 5.0, 0.0};
+    auto r = find_peaks(x, {.threshold = 3.0});
+    REQUIRE(r.indices.empty());
+}
+
 // ── find_peaks: distance filter keeps taller second peak ─────────────────────
 
 TEST_CASE("find_peaks distance filter keeps taller second peak", "[peaks]")
@@ -238,6 +248,17 @@ TEST_CASE("find_peaks detects peak at last interior index (n-2)", "[peaks]")
     CHECK(result.indices[0] == 2);
 }
 
+// ── find_peaks: distance=1 skips the filter block (value() <= 1 branch) ──────
+
+TEST_CASE("find_peaks distance=1 applies no filtering (value<=1 path)", "[peaks]")
+{
+    // opts.distance.has_value()=true but value()=1 so value()>1 is false →
+    // the whole condition is false and the distance-filter block is skipped.
+    std::vector<Real> x = {0, 1, 3, 1, 0, 4, 0, 1, 2, 1, 0};
+    auto result = find_peaks(x, {.distance = 1});
+    REQUIRE(result.indices.size() == 3);   // all peaks kept
+}
+
 // ── find_peaks: degenerate small inputs ──────────────────────────────────────
 // Signals with fewer than 3 samples cannot have interior maxima.
 
@@ -260,4 +281,55 @@ TEST_CASE("find_peaks returns empty for signal of length 2", "[peaks]")
     std::vector<Real> x = {1.0, 2.0};
     auto result = find_peaks(x);
     CHECK(result.indices.empty());
+}
+
+// ── Bug regression: peak_prominences scan direction ───────────────────────────
+// When there is a valley between the nearest higher left peak and a more-distant
+// higher peak, the left contour base must be the minimum between the NEAREST
+// higher peak and the subject peak — not the leftmost higher peak.
+//
+// Signal: [2, 5, 1, 4, 2, 3, 1, 7]
+//          0  1  2  3  4  5  6  7
+// Peak at idx 5 (h=3). Nearest higher left peak: idx 3 (h=4).
+// Left contour base = min(signal[3..5]) = min(4,2,3) = 2.
+// Right contour base = min(signal[5..7]) = min(3,1,7) = 1.
+// Prominence = 3 - max(2,1) = 1.
+// (Buggy code scans left-to-right, hits idx 1 first, takes min(signal[1..5])=1,
+//  giving wrong prominence = 2.)
+TEST_CASE("peak_prominences uses nearest higher peak not leftmost", "[peaks][regression]")
+{
+    std::vector<Real> signal = {2, 5, 1, 4, 2, 3, 1, 7};
+    std::vector<std::size_t> peaks = {5};
+    auto proms = peak_prominences(signal, peaks);
+    REQUIRE(proms.size() == 1);
+    CHECK_THAT(proms[0], WithinAbs(1.0, 1e-9));
+}
+
+// ── Bug regression: find_peaks width filter silently ignored ──────────────────
+// Passing opts.width should reduce the peak set; currently width is never
+// applied so the full set is returned regardless.
+TEST_CASE("find_peaks width filter excludes narrow peaks", "[peaks][regression]")
+{
+    // Three sharp spikes — each rises and falls in exactly 1 sample on each side.
+    // Any minimum-width requirement > ~1 should exclude all of them.
+    std::vector<Real> x = {0, 0, 1, 3, 1, 0, 1, 5, 1, 0, 1, 2, 1, 0, 0};
+
+    auto all = find_peaks(x);
+    REQUIRE(all.indices.size() == 3);   // baseline: 3 peaks without filter
+
+    auto result = find_peaks(x, {.width = 10.0});   // far wider than any peak
+    CHECK(result.indices.empty());
+}
+
+TEST_CASE("find_peaks width filter passes peak with sufficient width", "[peaks]")
+{
+    // Triangular peak {0,0,5,0,0} at index 2.
+    // prominence = 5, level = 2.5, left_pos = 1.5, right_pos = 2.5 → width = 1.0
+    std::vector<Real> x = {0, 0, 5, 0, 0};
+    auto r09 = find_peaks(x, {.width = 0.9});  // 1.0 >= 0.9 → peak included
+    REQUIRE(r09.indices.size() == 1);
+    CHECK(r09.indices[0] == 2);
+
+    auto r11 = find_peaks(x, {.width = 1.1});  // 1.0 < 1.1 → peak excluded
+    CHECK(r11.indices.empty());
 }

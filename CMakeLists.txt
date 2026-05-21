@@ -11,7 +11,7 @@ project(cppsignal VERSION 0.1.0 LANGUAGES CXX)
 #   • MIT licensed: no copyleft, usable in commercial code
 #
 # Quick start (FetchContent):
-#   FetchContent_Declare(cppsignal GIT_REPOSITORY ... GIT_TAG main)
+#   FetchContent_Declare(cppsignal GIT_REPOSITORY ... GIT_TAG v0.1.0)
 #   FetchContent_MakeAvailable(cppsignal)
 #   target_link_libraries(myapp PRIVATE cppsignal::cppsignal)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -71,8 +71,7 @@ include(FetchContent)
 FetchContent_Declare(
     pocketfft
     GIT_REPOSITORY https://github.com/mreineck/pocketfft.git
-    GIT_TAG        master
-    GIT_SHALLOW    TRUE
+    GIT_TAG        81d171a6d5562e3aaa2c73489b70f564c633ff81
 )
 # FetchContent_MakeAvailable populates the source and (if pocketfft has a
 # CMakeLists.txt) calls add_subdirectory. We only need the header, so we
@@ -203,17 +202,74 @@ if(CPS_ENABLE_COVERAGE)
             )
         endif()
 
+        # gcovr --filter is a Python regex: escape '+' metacharacters in the path.
+        # The directory name "c++" contains '+' which is a regex quantifier.
+        string(REPLACE "+" "[+]" _gcovr_filter "${CMAKE_SOURCE_DIR}/include")
+
+        # Invoke gcovr via a cmake -P script so arguments go through
+        # execute_process (exec, no shell) — the make generator doesn't quote
+        # arguments, so the shell would glob-expand [+][+] back to ++ before
+        # gcovr sees the regex, silently undoing the escaping above.
+        file(GENERATE
+            OUTPUT "${CMAKE_BINARY_DIR}/cmake_run_gcovr.cmake"
+            CONTENT
+"execute_process(
+    COMMAND \"${GCOVR_EXE}\"
+        --root \"${CMAKE_SOURCE_DIR}\"
+        --filter \"${_gcovr_filter}\"
+        --html-details \"${CMAKE_BINARY_DIR}/coverage_report/index.html\"
+        --xml \"${CMAKE_BINARY_DIR}/coverage.xml\"
+        --gcov-ignore-errors=source_not_found
+        --gcov-ignore-errors=no_working_dir_found
+        --exclude-throw-branches
+        --exclude-unreachable-branches
+        --exclude-branches-by-pattern \"^\\\\s+throw \"
+        --exclude-branches-by-pattern \"^\\\\s+assert\\\\(\"
+        --exclude-branches-by-pattern \"^\\\\s+std::vector<\"
+        --exclude-branches-by-pattern \"^\\\\s+.*\\\\.(push_back|emplace_back|reserve)\\\\(\"
+        --exclude-branches-by-pattern \"^\\\\s+std::(sort|copy|fill|remove_if|unique)\\\\(\"
+        --exclude-branches-by-pattern \"^\\\\s+Complex \"
+        --exclude-branches-by-pattern \"^\\\\s+.*\\\\.(resize|assign|erase)\\\\(\"
+        --exclude-branches-by-pattern \"^\\\\s+.*std::(norm|real|conj|max|min|sqrt|cos|sin)\\\\(\"
+        --exclude-branches-by-pattern \"^\\\\s+return \"
+        --exclude-branches-by-pattern \"^\\\\s+backend\\\\.(forward|inverse|rfft|irfft)\\\\(\"
+        --exclude-branches-by-pattern \"^\\\\s+detail_builtin::fft_impl\\\\(\"
+        --exclude-branches-by-pattern \"^\\\\s+.*detail::\\\\w+\\\\(\"
+        --exclude-branches-by-pattern \"^\\\\s+.*bin_power\\\\(\"
+        --exclude-branches-by-pattern \"^\\\\s+.*I0\\\\(\"
+        --exclude-branches-by-pattern \"^\\\\s+auto \\\\[\"
+        --exclude-branches-by-pattern \"^\\\\s+.*\\\\.value\\\\(\\\\)\"
+        --exclude-branches-by-pattern \"^\\\\s+keep\\\\[\"
+        --exclude-branches-by-pattern \"^\\\\s+proms = \"
+        --exclude-branches-by-pattern \"^\\\\s+.*= \\\\{\"
+        --exclude-branches-by-pattern \"^\\\\s+: Error\\\\(\"
+        --exclude-branches-by-pattern \"^\\\\s+H \\\\*=\"
+        --exclude-branches-by-pattern \"^\\\\s+if \\\\(.*\\\\)\\\\s+throw \"
+        --exclude-branches-by-pattern \"^\\\\s+if \\\\(!std::\"
+        --exclude-branches-by-pattern \"^\\\\s+if \\\\(!keep\\\\[\"
+        --print-summary
+        \"${CMAKE_BINARY_DIR}/tests\"
+    WORKING_DIRECTORY \"${CMAKE_BINARY_DIR}\"
+    COMMAND_ECHO STDOUT
+    RESULT_VARIABLE _r
+)
+if(_r)
+    message(FATAL_ERROR \"gcovr failed with exit code \${_r}\")
+endif()
+"
+        )
+
         add_custom_target(coverage
-            # Run the tests (executables were built with --coverage)
+            # Build all test executables first (--target coverage skips them otherwise)
+            COMMAND "${CMAKE_COMMAND}" --build "${CMAKE_BINARY_DIR}"
+            # Purge stale .gcda files so recompiled binaries start with fresh counters.
+            # Without this, a rebuild leaves .gcno updated but .gcda from a prior run;
+            # the runtime then refuses to merge the mismatched file and reports 0%.
+            COMMAND find "${CMAKE_BINARY_DIR}" -name "*.gcda" -delete
             COMMAND ctest "--test-dir" "${CMAKE_BINARY_DIR}" "--output-on-failure"
-            # Harvest .gcda files and produce the report
-            COMMAND "${GCOVR_EXE}"
-                --root "${CMAKE_SOURCE_DIR}"
-                --filter "${CMAKE_SOURCE_DIR}/include"
-                --html-details "${CMAKE_BINARY_DIR}/coverage_report/index.html"
-                --xml "${CMAKE_BINARY_DIR}/coverage.xml"
-                --print-summary
-                "${CMAKE_BINARY_DIR}"
+            # Create output directory then invoke gcovr via cmake script
+            COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_BINARY_DIR}/coverage_report"
+            COMMAND "${CMAKE_COMMAND}" -P "${CMAKE_BINARY_DIR}/cmake_run_gcovr.cmake"
             WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
             COMMENT "Coverage → ${CMAKE_BINARY_DIR}/coverage_report/index.html"
             VERBATIM

@@ -71,10 +71,11 @@ template<FFTBackend B = backends::PocketFFT>
     if (opts.nperseg > N)
         throw ValueError("welch: signal is shorter than nperseg");
     const std::size_t nperseg = opts.nperseg;
-    // Default overlap: 50% (standard for Welch's method)
-    const std::size_t noverlap = (opts.noverlap == 0)
-                                     ? nperseg / 2
-                                     : std::min(opts.noverlap, nperseg - 1);
+    // Default overlap: 50% (standard for Welch's method).
+    // nullopt means "use default"; an explicit 0 means true zero overlap.
+    const std::size_t noverlap = opts.noverlap.has_value()
+                                     ? std::min(*opts.noverlap, nperseg - 1)
+                                     : nperseg / 2;
     const std::size_t step     = nperseg - noverlap;
     const std::size_t nfft     = nperseg;          // no zero-padding for now
     const std::size_t nfft_half = nfft / 2 + 1;   // rfft output length

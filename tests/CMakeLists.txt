@@ -7,6 +7,11 @@ set(CPS_TESTS
     test_spectral
     test_generate
     test_peaks
+    test_stress
+    test_ieee_edge
+    test_generate_extended
+    test_internals
+    test_stubs
 )
 
 foreach(t ${CPS_TESTS})

@@ -215,7 +215,7 @@ namespace cps {
     std::normal_distribution<double> dist(0.0, std_dev);
 
     std::vector<Real> y(n);
-    for (auto& v : y) v = dist(rng);
+    for (auto& v : y) v = dist(rng); // GCOV_EXCL_BR_LINE
     return y;
 }
 

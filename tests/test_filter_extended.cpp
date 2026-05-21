@@ -332,6 +332,19 @@ TEST_CASE("lfilter throws for empty coefficients or zero a[0]", "[lfilter][error
     CHECK_THROWS_AS(lfilter(b,      a_zero, sig), ValueError);   // a[0] == 0
 }
 
+TEST_CASE("lfilter b={1} a={1}: pass-through exercises nz=0 path", "[lfilter]")
+{
+    // nz = max(|b|, |a|) - 1 = max(1,1) - 1 = 0
+    // Exercises (nz > 0 ? z[0] : 0.0) false branch and if(nz>0) false branch.
+    std::vector<Real> x = {1.0, 2.0, 3.0, -1.0};
+    std::vector<Real> b = {1.0};
+    std::vector<Real> a = {1.0};
+    auto y = lfilter(b, a, x);
+    REQUIRE(y.size() == 4);
+    for (std::size_t i = 0; i < 4; ++i)
+        CHECK_THAT(y[i], WithinAbs(x[i], 1e-12));
+}
+
 // ── zpk2sos: exercise complex-zero and real-pole-pair branches ────────────────
 
 TEST_CASE("zpk2sos handles complex zeros — frequency response is finite and non-trivial", "[filter_design]")
@@ -382,4 +395,101 @@ TEST_CASE("Butterworth order=12 LP has unity DC gain", "[butter]")
 TEST_CASE("butter throws ValueError for negative fs", "[butter][error]")
 {
     CHECK_THROWS_AS(butter(4, 100.0, FilterType::Lowpass, {.fs = -1.0}), ValueError);
+}
+
+// ── freqz with fs=0: normalised frequency axis ────────────────────────────────
+// When fs=0 (the default), freqz returns frequencies in [0, 0.5] (fraction of
+// sample rate) instead of Hz. This branch is distinct from the fs>0 path.
+
+TEST_CASE("freqz with fs=0 returns normalised frequency axis in [0, 0.5]", "[freqz]")
+{
+    auto sos = butter(4, 0.2, FilterType::Lowpass);
+    auto [f, H] = freqz(sos, 256);   // fs omitted → default 0.0 → normalised
+
+    REQUIRE(f.size() == 256);
+    CHECK_THAT(f.front(), WithinAbs(0.0,  1e-9));
+    // Last point: ω = π*(255/256) → normalised freq = 255/512 ≈ 0.498
+    CHECK_THAT(f.back(),  WithinAbs(255.0 / 512.0, 1e-6));
+    // DC gain still ~1
+    CHECK_THAT(std::abs(H[0]), WithinAbs(1.0, 1e-6));
+}
+
+// ── zpk2sos edge cases ────────────────────────────────────────────────────────
+
+TEST_CASE("zpk2sos uses default z=-1 when real zeros exhausted (biquad)", "[filter_design]")
+{
+    // Complex pole pair with no zeros at all → next_biquad_zeros pops twice from
+    // an empty real_zeros list, returning Complex(-1,0) both times (line 153).
+    std::vector<Complex> zeros = {};
+    std::vector<Complex> poles = {Complex(-0.5, 0.3), Complex(-0.5, -0.3)};
+    auto sos = detail::zpk2sos(zeros, poles, 1.0);
+    REQUIRE(sos.size() == 1);
+    for (double omega : {0.0, 1.0, std::numbers::pi}) {
+        CHECK(std::isfinite(sos_mag(sos, omega)));
+    }
+}
+
+TEST_CASE("zpk2sos uses default z=-1 when real zeros exhausted (lone real pole)", "[filter_design]")
+{
+    // Single real pole with no zeros → next_single_zero returns Complex(-1,0)
+    // from an empty real_zeros list (line 161).
+    std::vector<Complex> zeros = {};
+    std::vector<Complex> poles = {Complex(-0.5, 0.0)};
+    auto sos = detail::zpk2sos(zeros, poles, 1.0);
+    REQUIRE(sos.size() == 1);
+    for (double omega : {0.0, 1.0, std::numbers::pi}) {
+        CHECK(std::isfinite(sos_mag(sos, omega)));
+    }
+}
+
+TEST_CASE("zpk2sos throws when complex zeros outnumber complex poles", "[filter_design]")
+{
+    // 2 complex zero pairs vs 1 complex pole pair → 1 zero pair unmatched → throw.
+    std::vector<Complex> zeros = {
+        Complex(0.3, 0.1), Complex(0.3, -0.1),
+        Complex(0.4, 0.2), Complex(0.4, -0.2)
+    };
+    std::vector<Complex> poles = {Complex(-0.5, 0.3), Complex(-0.5, -0.3)};
+    CHECK_THROWS_AS(detail::zpk2sos(zeros, poles, 1.0), NumericalError);
+}
+
+// ── firwin: normalisation sum near zero throws ────────────────────────────────
+// When the cutoff frequency is extremely small, the windowed sinc sums to
+// nearly zero after tapering, and the normalisation step throws.
+
+TEST_CASE("firwin throws NumericalError when cutoff is too close to zero", "[firwin][error]")
+{
+    // Wn=1e-13 → fc = 5e-14; windowed sinc sum ≈ 1e-13 << 1e-12 → throw.
+    CHECK_THROWS_AS(firwin(3, 1e-13, Window::Hamming), NumericalError);
+}
+
+// ── firwin: even numtaps + Lowpass does not throw ─────────────────────────────
+// Covers design.hpp:384 false sub-branch: numtaps%2==0 is true but type!=Highpass,
+// so the short-circuit && is true on left but false on right → no throw.
+TEST_CASE("firwin even numtaps with Lowpass does not throw", "[firwin]")
+{
+    auto h = firwin(50, 0.3, Window::Hamming, FilterType::Lowpass);
+    REQUIRE(h.size() == 50);
+    double dc = 0.0;
+    for (auto v : h) dc += v;
+    CHECK_THAT(dc, WithinAbs(1.0, 1e-6));
+}
+
+// ── lfilter with na > nb: false branch in delay-line update ──────────────────
+// b={1.0} (nb=1), a={1.0,-0.5,0.25} (na=3), nz=2.
+// In the inner loop at i=0: i+1=1 >= nb=1 → (i+1 < nb ? ... : 0.0) takes false.
+// This covers the else-0.0 path in apply.hpp that is skipped when nb >= na.
+TEST_CASE("lfilter na>nb correctly implements second-order IIR", "[lfilter]")
+{
+    std::vector<Real> b = {1.0};
+    std::vector<Real> a = {1.0, -0.5, 0.25};
+    auto impulse = unit_impulse(16);
+
+    auto y = lfilter(b, a, impulse);
+    REQUIRE(y.size() == 16);
+    // y[n] = x[n] + 0.5*y[n-1] - 0.25*y[n-2]
+    CHECK_THAT(y[0], WithinAbs(1.0, 1e-12));   // h[0] = 1
+    CHECK_THAT(y[1], WithinAbs(0.5, 1e-12));   // h[1] = 0.5
+    // Response should decay over time
+    CHECK(std::abs(y[15]) < std::abs(y[0]));
 }

@@ -269,6 +269,14 @@ TEST_CASE("stft throws for empty signal", "[stft][error]")
     CHECK_THROWS_AS(stft(empty, 1000.0), ValueError);
 }
 
+TEST_CASE("stft throws when signal is shorter than nperseg", "[stft][error]")
+{
+    std::vector<Real> x(50, 1.0);
+    STFTOptions opts;
+    opts.nperseg = 100;
+    CHECK_THROWS_AS(stft(x, 1000.0, opts), ValueError);
+}
+
 // ── welch onesided=false: two-sided spectrum ──────────────────────────────────
 // The two-sided PSD should have length nperseg, span negative frequencies, and
 // integrate to the same total power as the one-sided estimate.
@@ -313,6 +321,60 @@ TEST_CASE("welch onesided=false gives full two-sided spectrum", "[welch]")
     CHECK_THAT(total_power, WithinRel(0.5, 0.20));
 }
 
+// ── stft with default noverlap (nullopt → nperseg/2) ─────────────────────────
+TEST_CASE("stft with default noverlap uses nperseg/2", "[stft]")
+{
+    constexpr std::size_t nperseg = 64;
+    std::vector<Real> x(256, 1.0);
+    STFTOptions opts;
+    opts.nperseg = nperseg;
+    // opts.noverlap left as nullopt → should default to nperseg/2 = 32
+    auto sg = stft(x, 1000.0, opts);
+    CHECK(sg.freqs.size() == nperseg / 2 + 1);
+    const std::size_t expected_hop = nperseg / 2;  // noverlap = 32 → hop = 32
+    const std::size_t nframe = (x.size() - nperseg) / expected_hop + 1;
+    CHECK_THAT(static_cast<double>(sg.times.size()),
+               WithinAbs(static_cast<double>(nframe), 2.0));
+}
+
+// ── stft with fs=0 (normalised output) ───────────────────────────────────────
+TEST_CASE("stft with fs=0 produces normalised frequency axis", "[stft]")
+{
+    std::vector<Real> x(256, 1.0);
+    STFTOptions opts;
+    opts.nperseg  = 64;
+    opts.noverlap = 32;
+    auto sg = stft(x, 0.0, opts);   // fs = 0 → normalised
+
+    // Normalised one-sided freqs: k/nfft for k=0..nfft/2, so range [0, 0.5]
+    CHECK_THAT(sg.freqs.front(), WithinAbs(0.0,  1e-9));
+    CHECK_THAT(sg.freqs.back(),  WithinAbs(0.5,  1e-9));
+    // Time axis: centre sample index (not divided by fs)
+    CHECK(sg.times.front() < 100.0);   // sample-domain values, not seconds
+}
+
+// ── stft onesided=false with fs=0 (normalised two-sided) ─────────────────────
+TEST_CASE("stft onesided=false with fs=0 has normalised two-sided axis", "[stft]")
+{
+    constexpr std::size_t nperseg = 64;
+    std::vector<Real> x(256, 1.0);
+    STFTOptions opts;
+    opts.nperseg  = nperseg;
+    opts.noverlap = nperseg / 2;
+    opts.onesided = false;
+    auto sg = stft(x, 0.0, opts);   // fs = 0, two-sided
+
+    // Two-sided: nfft rows
+    CHECK(sg.freqs.size() == nperseg);
+    // First freq is 0, second half contains negative values
+    CHECK_THAT(sg.freqs.front(), WithinAbs(0.0, 1e-9));
+    bool has_negative = false;
+    for (auto fv : sg.freqs) if (fv < 0.0) { has_negative = true; break; }
+    CHECK(has_negative);
+    // Times are in sample units (not divided by fs)
+    CHECK(sg.times.front() < 1000.0);
+}
+
 // ── stft onesided=false: two-sided complex spectrum ───────────────────────────
 TEST_CASE("stft onesided=false has nfft frequency rows and negative bins", "[stft]")
 {
@@ -346,4 +408,22 @@ TEST_CASE("stft onesided=false has nfft frequency rows and negative bins", "[stf
             CHECK_THAT(mag_pos, WithinAbs(mag_neg, 1e-10));
         }
     }
+}
+
+// ── stft with explicit nfft (zero-padding path) ───────────────────────────────
+TEST_CASE("stft with explicit nfft zero-pads frames and gives correct freq axis", "[stft]")
+{
+    constexpr std::size_t nperseg = 32;
+    constexpr std::size_t nfft    = 64;   // opts.nfft != 0 → stft.hpp:68 right branch
+    std::vector<Real> x(256, 1.0);
+    STFTOptions opts;
+    opts.nperseg  = nperseg;
+    opts.noverlap = nperseg / 2;
+    opts.nfft     = nfft;
+    auto sg = stft(x, 1000.0, opts);
+
+    // One-sided output: nfft/2+1 = 33 frequency rows
+    CHECK(sg.freqs.size() == nfft / 2 + 1);
+    // Frequency axis ends at Nyquist (fs/2 = 500 Hz)
+    CHECK_THAT(sg.freqs.back(), WithinAbs(500.0, 1.0));
 }

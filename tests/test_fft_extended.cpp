@@ -241,3 +241,18 @@ TEST_CASE("rfftfreq throws for n=0", "[fft][error]")
 {
     CHECK_THROWS_AS(rfftfreq(0), ValueError);
 }
+
+// ── N=1 edge case: cooley_tukey N<=1 early-return path ───────────────────────
+TEST_CASE("fft/ifft handles N=1 (single-element trivial case)", "[fft]")
+{
+    std::vector<Complex> x = {{3.0, 2.0}};
+    auto X = fft(std::span<const Complex>(x));
+    REQUIRE(X.size() == 1);
+    CHECK_THAT(X[0].real(), WithinAbs(3.0, 1e-12));
+    CHECK_THAT(X[0].imag(), WithinAbs(2.0, 1e-12));
+
+    auto x2 = ifft(std::span<const Complex>(X));
+    REQUIRE(x2.size() == 1);
+    CHECK_THAT(x2[0].real(), WithinAbs(3.0, 1e-12));
+    CHECK_THAT(x2[0].imag(), WithinAbs(2.0, 1e-12));
+}

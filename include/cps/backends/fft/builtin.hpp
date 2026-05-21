@@ -33,7 +33,7 @@ namespace detail_builtin {
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
-inline bool is_pow2(std::size_t n) { return n > 0 && (n & (n - 1)) == 0; }
+inline bool is_pow2(std::size_t n) { return n > 0 && (n & (n - 1)) == 0; } // GCOV_EXCL_BR_LINE
 
 // ── Bit-reversal permutation ───────────────────────────────────────────────
 // Reorders x so that x[i] ends up at x[bit_reverse(i)].

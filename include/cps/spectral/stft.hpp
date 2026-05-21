@@ -57,11 +57,13 @@ template<FFTBackend B = backends::PocketFFT>
     if (signal.empty())
         throw ValueError("stft: signal must not be empty");
 
-    const std::size_t N        = signal.size();
-    const std::size_t nperseg  = std::min(opts.nperseg, N);
-    const std::size_t noverlap = (opts.noverlap == 0)
-                                     ? nperseg / 2
-                                     : std::min(opts.noverlap, nperseg - 1);
+    const std::size_t N = signal.size();
+    if (opts.nperseg > N)
+        throw ValueError("stft: signal is shorter than nperseg");
+    const std::size_t nperseg  = opts.nperseg;
+    const std::size_t noverlap = opts.noverlap.has_value()
+                                     ? std::min(*opts.noverlap, nperseg - 1)
+                                     : nperseg / 2;
     const std::size_t step     = nperseg - noverlap;
     const std::size_t nfft      = (opts.nfft == 0) ? nperseg : opts.nfft;
     const std::size_t nfft_half = nfft / 2 + 1;
@@ -159,7 +161,7 @@ template<FFTBackend B = backends::PocketFFT>
     result.times = std::move(s.times);
 
     const std::size_t nf = s.Zxx.size();
-    const std::size_t nt = nf > 0 ? s.Zxx[0].size() : 0;
+    const std::size_t nt = nf > 0 ? s.Zxx[0].size() : 0; // GCOV_EXCL_BR_LINE
 
     result.power.assign(nf, std::vector<Real>(nt));
     for (std::size_t f = 0; f < nf; ++f)
