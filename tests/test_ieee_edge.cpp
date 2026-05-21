@@ -57,16 +57,9 @@ TEST_CASE("linspace: -0.0 start is treated as 0.0", "[ieee][generate]")
     CHECK_THAT(t[0], WithinAbs(0.0, 1e-12));   // -0.0 == 0.0
 }
 
-TEST_CASE("arange: step=NaN throws ValueError (NaN == 0.0 is false, but -0.0 == 0.0 is true)", "[ieee][generate]")
+TEST_CASE("arange: step=NaN throws ValueError", "[ieee][generate]")
 {
-    // step == 0.0 check: NaN == 0.0 is false → arange does NOT throw for NaN step
-    // Instead it produces a zero-length or NaN output
-    // n = ceil((stop-start)/NaN) = ceil(NaN) = size_t of NaN (impl defined, but max(0, NaN)=0)
-    auto t = arange(0.0, 5.0, kNaN);
-    // max(0.0, NaN) = NaN (on most IEC 60559 implementations std::max(0.0, NaN) is unspecified)
-    // In practice this produces an empty vector since size_t cast of NaN/negative = 0
-    // We just verify it doesn't crash
-    CHECK((t.size() == 0 || t.size() < 10));
+    CHECK_THROWS_AS(arange(0.0, 5.0, kNaN), ValueError);
 }
 
 TEST_CASE("arange: step=-0.0 throws ValueError (same as step=0.0)", "[ieee][generate]")
@@ -171,16 +164,10 @@ TEST_CASE("sinusoid: freq=denorm_min is near-zero, output near zero", "[ieee][ge
 // chirp — IEEE parameters
 // ════════════════════════════════════════════════════════════════════════════
 
-TEST_CASE("chirp: t1=NaN does not throw (NaN<=0 is false), all outputs NaN", "[ieee][generate]")
+TEST_CASE("chirp: t1=NaN throws ValueError", "[ieee][generate]")
 {
     std::vector<Real> t = {0.0, 0.5, 1.0};
-    std::vector<Real> y;
-    REQUIRE_NOTHROW(y = chirp(t, 10.0, 100.0, kNaN));
-    REQUIRE(y.size() == 3);
-    // k = (f1-f0)/t1 = 90/NaN = NaN; phase = 2π*(f0*t + 0.5*k*t²)
-    // At t=0: 0.5*NaN*0 = NaN (in IEEE: NaN*0 = NaN), so all outputs are NaN
-    for (auto v : y)
-        CHECK(std::isnan(v));
+    CHECK_THROWS_AS(chirp(t, 10.0, 100.0, kNaN), ValueError);
 }
 
 TEST_CASE("chirp: t1=+Inf does not throw and produces finite output", "[ieee][generate]")
@@ -219,14 +206,10 @@ TEST_CASE("gausspulse: fc=-Inf throws ValueError (−Inf <= 0 is true)", "[ieee]
     CHECK_THROWS_AS(gausspulse(t, kNInf), ValueError);
 }
 
-TEST_CASE("gausspulse: fc=NaN does not throw, produces NaN output", "[ieee][generate]")
+TEST_CASE("gausspulse: fc=NaN throws ValueError", "[ieee][generate]")
 {
-    // NaN <= 0 is false, so the guard doesn't fire
     std::vector<Real> t = {0.0};
-    std::vector<Real> y;
-    REQUIRE_NOTHROW(y = gausspulse(t, kNaN));
-    REQUIRE(y.size() == 1);
-    CHECK(std::isnan(y[0]));
+    CHECK_THROWS_AS(gausspulse(t, kNaN), ValueError);
 }
 
 TEST_CASE("gausspulse: bw=-Inf throws ValueError (−Inf <= 0 is true)", "[ieee][generate]")
@@ -437,15 +420,9 @@ TEST_CASE("butter: fs=+Inf, Wn_norm = 2*Wn/Inf = 0 throws ValueError (Wn_norm <=
     CHECK_THROWS_AS(butter(4, 100.0, FilterType::Lowpass, {.fs = kInf}), ValueError);
 }
 
-TEST_CASE("butter: Wn=NaN does not throw, returns non-empty SOS (NaN comparisons are false)", "[ieee][filter]")
+TEST_CASE("butter: Wn=NaN throws ValueError", "[ieee][filter]")
 {
-    // Both Wn_norm <= 0.0 and Wn_norm >= 1.0 are false for NaN → no validation throw
-    // NaN poles are discarded in zpk2sos (NaN > 0 is false) → empty SOS returned
-    SOS sos;
-    REQUIRE_NOTHROW(sos = butter(4, kNaN, FilterType::Lowpass));
-    // The SOS is either empty (NaN poles discarded) or filled with NaN coefficients
-    // either way the result should not crash
-    (void)sos;
+    CHECK_THROWS_AS(butter(4, kNaN, FilterType::Lowpass), ValueError);
 }
 
 TEST_CASE("butter: Wn=denorm_min, throws NumericalError due to gain overflow", "[ieee][filter]")

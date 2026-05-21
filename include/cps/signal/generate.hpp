@@ -35,7 +35,7 @@ namespace cps {
 
 [[nodiscard]] inline std::vector<Real> arange(Real start, Real stop, Real step = 1.0)
 {
-    if (step == 0.0) throw ValueError("arange: step must not be zero");
+    if (step == 0.0 || std::isnan(step)) throw ValueError("arange: step must not be zero or NaN");
     std::size_t n = static_cast<std::size_t>(std::max(0.0, std::ceil((stop - start) / step)));
     std::vector<Real> t(n);
     for (std::size_t i = 0; i < n; ++i)
@@ -83,7 +83,7 @@ namespace cps {
 [[nodiscard]] inline std::vector<Real> chirp(std::span<const Real> t, Real f0, Real f1,
                                             Real t1, Real phi_deg = 0.0)
 {
-    if (t1 <= 0.0)
+    if (!(t1 > 0.0))
         throw ValueError("chirp: t1 must be > 0");
 
     const double phi0   = phi_deg * std::numbers::pi / 180.0;
@@ -117,10 +117,10 @@ namespace cps {
 [[nodiscard]] inline std::vector<Real> gausspulse(std::span<const Real> t, Real fc,
                                                   Real bw = 0.5, Real bw_db = -6.0)
 {
-    if (fc    <= 0.0) throw ValueError("gausspulse: fc must be > 0");
-    if (bw    <= 0.0) throw ValueError("gausspulse: bw must be > 0");
-    if (bw_db >= 0.0) throw ValueError("gausspulse: bw_db must be < 0 "
-                                       "(it is a reference level in dB, e.g. -6)");
+    if (!(fc    > 0.0)) throw ValueError("gausspulse: fc must be > 0");
+    if (!(bw    > 0.0)) throw ValueError("gausspulse: bw must be > 0");
+    if (!(bw_db < 0.0)) throw ValueError("gausspulse: bw_db must be < 0 "
+                                         "(it is a reference level in dB, e.g. -6)");
 
     // α such that the Gaussian envelope is at bw_db at half-bandwidth.
     // ref < 1 (e.g. 0.5 for -6 dB), so log(ref) < 0, making alpha < 0 (decaying).
@@ -161,7 +161,7 @@ namespace cps {
 [[nodiscard]] inline std::vector<Real> square_wave(std::span<const Real> t, Real freq,
                                                    Real duty = 0.5)
 {
-    if (duty <= 0.0 || duty >= 1.0)
+    if (!(duty > 0.0 && duty < 1.0))   // catches NaN, ±inf, out-of-range
         throw ValueError("square_wave: duty must be in (0, 1)");
 
     std::vector<Real> y(t.size());
@@ -182,7 +182,7 @@ namespace cps {
 [[nodiscard]] inline std::vector<Real> sawtooth_wave(std::span<const Real> t, Real freq,
                                                      Real width = 1.0)
 {
-    if (width < 0.0 || width > 1.0)
+    if (!(width >= 0.0 && width <= 1.0))   // catches NaN, ±inf, out-of-range
         throw ValueError("sawtooth_wave: width must be in [0, 1] "
                          "(0 = pure falling ramp, 1 = pure rising ramp)");
 

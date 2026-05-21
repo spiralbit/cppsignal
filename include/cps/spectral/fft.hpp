@@ -116,6 +116,8 @@ template<FFTBackend B = backends::PocketFFT>
 {
     if (x.empty())
         throw ValueError("irfft: input must not be empty");
+    if (n == 0)
+        throw ValueError("irfft: n must be > 0");
     if (x.size() != n / 2 + 1)
         throw ValueError("irfft: spectrum size does not match n (expected n/2+1)");
 

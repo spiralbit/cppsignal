@@ -228,7 +228,7 @@ inline SOS zpk2sos(std::vector<Complex> zeros,
 // Returns Wn as a fraction of Nyquist in (0, 1).
 // Throws ValueError if Wn or fs is out of range.
 inline double normalise_wn(double Wn, const FilterOptions& opts) {
-    if (opts.fs < 0.0)
+    if (!(opts.fs >= 0.0))   // catches NaN and negative fs
         throw ValueError("FilterOptions::fs must be >= 0 "
                          "(0 means Wn is already a normalised fraction of Nyquist)");
 
@@ -236,7 +236,7 @@ inline double normalise_wn(double Wn, const FilterOptions& opts) {
     if (opts.fs > 0.0)
         Wn_norm = 2.0 * Wn / opts.fs;   // Hz → fraction of Nyquist
 
-    if (Wn_norm <= 0.0 || Wn_norm >= 1.0)
+    if (!(Wn_norm > 0.0 && Wn_norm < 1.0))   // catches NaN, ±inf, out-of-range
         throw ValueError("Wn must be in (0, 1) when normalised, "
                          "or in (0, fs/2) when fs is provided");
     return Wn_norm;

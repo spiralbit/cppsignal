@@ -75,9 +75,10 @@ template<FFTBackend B = backends::PocketFFT>
 [[nodiscard]] Real snr(std::span<const Real> x, Real fundamental, Real fs,
                        int n_harmonics = 5, B backend = {})
 {
-    if (fundamental <= 0.0) throw ValueError("snr: fundamental must be > 0");
-    if (fs <= 0.0)           throw ValueError("snr: fs must be > 0");
-    if (x.empty())           throw ValueError("snr: signal must not be empty");
+    if (!(fundamental > 0.0)) throw ValueError("snr: fundamental must be > 0");
+    if (!(fs > 0.0))           throw ValueError("snr: fs must be > 0");
+    if (n_harmonics < 1)       throw ValueError("snr: n_harmonics must be >= 1");
+    if (x.empty())             throw ValueError("snr: signal must not be empty");
 
     const std::size_t N = x.size();
     auto spec = rfft(x, backend);
@@ -142,9 +143,9 @@ template<FFTBackend B = backends::PocketFFT>
 [[nodiscard]] Real thd(std::span<const Real> x, Real fundamental, Real fs,
                        int n_harmonics = 5, B backend = {})
 {
-    if (fundamental <= 0.0) throw ValueError("thd: fundamental must be > 0");
-    if (fs <= 0.0)           throw ValueError("thd: fs must be > 0");
-    if (n_harmonics < 1)     throw ValueError("thd: n_harmonics must be >= 1");
+    if (!(fundamental > 0.0)) throw ValueError("thd: fundamental must be > 0");
+    if (!(fs > 0.0))           throw ValueError("thd: fs must be > 0");
+    if (n_harmonics < 1)       throw ValueError("thd: n_harmonics must be >= 1");
 
     const std::size_t N = x.size();
     auto spec = rfft(x, backend);
@@ -186,8 +187,8 @@ template<FFTBackend B = backends::PocketFFT>
 template<FFTBackend B = backends::PocketFFT>
 [[nodiscard]] Real sinad(std::span<const Real> x, Real fundamental, Real fs, B backend = {})
 {
-    if (fundamental <= 0.0) throw ValueError("sinad: fundamental must be > 0");
-    if (fs <= 0.0)           throw ValueError("sinad: fs must be > 0");
+    if (!(fundamental > 0.0)) throw ValueError("sinad: fundamental must be > 0");
+    if (!(fs > 0.0))           throw ValueError("sinad: fs must be > 0");
 
     const std::size_t N = x.size();
     auto spec = rfft(x, backend);

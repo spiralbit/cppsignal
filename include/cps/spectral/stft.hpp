@@ -66,6 +66,8 @@ template<FFTBackend B = backends::PocketFFT>
                                      : nperseg / 2;
     const std::size_t step     = nperseg - noverlap;
     const std::size_t nfft      = (opts.nfft == 0) ? nperseg : opts.nfft;
+    if (nfft < nperseg)
+        throw ValueError("stft: nfft must be >= nperseg when specified");
     const std::size_t nfft_half = nfft / 2 + 1;
     const std::size_t nfreqs    = opts.onesided ? nfft_half : nfft;
 

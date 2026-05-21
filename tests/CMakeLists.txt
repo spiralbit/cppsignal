@@ -13,6 +13,7 @@ set(CPS_TESTS
     test_internals
     test_stubs
     test_adversarial
+    test_validation
 )
 
 foreach(t ${CPS_TESTS})
