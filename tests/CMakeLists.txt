@@ -12,6 +12,7 @@ set(CPS_TESTS
     test_generate_extended
     test_internals
     test_stubs
+    test_adversarial
 )
 
 foreach(t ${CPS_TESTS})

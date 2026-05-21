@@ -140,6 +140,12 @@ namespace cps {
         // a raised-cosine over alpha/2 of the window on each side.
         const double alpha = (param <= 0.0) ? 0.5 : param;
         const int    taper = static_cast<int>(std::floor(alpha * M / 2.0));
+        // taper==0 when n is small relative to alpha (e.g. n<=4, alpha=0.5).
+        // cos(π*i/0) is NaN; avoid it by treating as rectangular.
+        if (taper == 0) {
+            std::fill(w.begin(), w.end(), 1.0);
+            break;
+        }
         for (std::size_t i = 0; i < n; ++i) {
             int ii = static_cast<int>(i);
             if (ii <= taper)
