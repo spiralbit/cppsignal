@@ -1,0 +1,18 @@
+test_fft 1 0.00877718
+test_fft_extended 1 0.00745457
+test_windows 1 0.00884077
+test_filter_design 1 0.00935847
+test_filter_extended 1 0.00897696
+test_spectral 1 0.05151
+test_generate 1 0.534309
+test_peaks 1 0.0102028
+test_stress 1 2.18856
+test_ieee_edge 1 0.0107734
+test_generate_extended 1 0.0334368
+test_internals 1 0.0101307
+test_stubs 1 0.00803798
+test_adversarial 1 0.0155648
+test_validation 1 0.0114801
+test_review_bugs 1 0.0390523
+test_fftw_backend 1 37.6643
+---

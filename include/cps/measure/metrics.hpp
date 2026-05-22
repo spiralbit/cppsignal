@@ -143,6 +143,7 @@ template<FFTBackend B = backends::PocketFFT>
 [[nodiscard]] Real thd(std::span<const Real> x, Real fundamental, Real fs,
                        int n_harmonics = 5, B backend = {})
 {
+    if (x.empty())             throw ValueError("thd: signal must not be empty");
     if (!(fundamental > 0.0)) throw ValueError("thd: fundamental must be > 0");
     if (!(fs > 0.0))           throw ValueError("thd: fs must be > 0");
     if (n_harmonics < 1)       throw ValueError("thd: n_harmonics must be >= 1");
@@ -187,6 +188,7 @@ template<FFTBackend B = backends::PocketFFT>
 template<FFTBackend B = backends::PocketFFT>
 [[nodiscard]] Real sinad(std::span<const Real> x, Real fundamental, Real fs, B backend = {})
 {
+    if (x.empty())             throw ValueError("sinad: signal must not be empty");
     if (!(fundamental > 0.0)) throw ValueError("sinad: fundamental must be > 0");
     if (!(fs > 0.0))           throw ValueError("sinad: fs must be > 0");
 

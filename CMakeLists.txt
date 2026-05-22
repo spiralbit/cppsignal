@@ -89,9 +89,36 @@ target_include_directories(cppsignal INTERFACE
 # ── Optional FFTW3 backend ───────────────────────────────────────────────────
 # FFTW is GPL-licensed. Enable only if you accept that licence or hold a
 # commercial FFTW licence. Off by default so the library stays MIT-clean.
+#
+# Usage (system install):   cmake -DCPS_ENABLE_FFTW=ON ..
+# Usage (custom prefix):    cmake -DCPS_ENABLE_FFTW=ON -DFFTW3_ROOT=/path/to/fftw3 ..
 option(CPS_ENABLE_FFTW "Enable FFTW3 backend (GPL — read licence before enabling)" OFF)
 if(CPS_ENABLE_FFTW)
-    find_package(FFTW3 REQUIRED)
+    if(NOT TARGET FFTW3::fftw3)
+        if(DEFINED FFTW3_ROOT)
+            # Build from a known prefix: skip find_package (autotools cmake config
+            # may reference a missing FFTW3LibraryDepends.cmake) and wire up directly.
+            find_library(FFTW3_LIBRARY NAMES fftw3 HINTS "${FFTW3_ROOT}/lib" REQUIRED)
+            add_library(FFTW3::fftw3 UNKNOWN IMPORTED)
+            set_target_properties(FFTW3::fftw3 PROPERTIES
+                IMPORTED_LOCATION "${FFTW3_LIBRARY}"
+                INTERFACE_INCLUDE_DIRECTORIES "${FFTW3_ROOT}/include"
+            )
+        else()
+            # System install: try find_package (works with cmake-built FFTW or pkg-config).
+            find_package(FFTW3 QUIET)
+            if(NOT TARGET FFTW3::fftw3)
+                find_library(FFTW3_LIBRARY NAMES fftw3 REQUIRED)
+                find_path(FFTW3_INCLUDE_DIR fftw3.h REQUIRED)
+                add_library(FFTW3::fftw3 UNKNOWN IMPORTED)
+                set_target_properties(FFTW3::fftw3 PROPERTIES
+                    IMPORTED_LOCATION "${FFTW3_LIBRARY}"
+                    INTERFACE_INCLUDE_DIRECTORIES "${FFTW3_INCLUDE_DIR}"
+                )
+            endif()
+        endif()
+    endif()
+
     target_link_libraries(cppsignal INTERFACE FFTW3::fftw3)
     target_compile_definitions(cppsignal INTERFACE CPS_HAS_FFTW)
     message(STATUS "cppsignal: FFTW3 backend enabled (GPL licence applies)")

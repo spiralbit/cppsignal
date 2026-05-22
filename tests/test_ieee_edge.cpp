@@ -306,12 +306,9 @@ TEST_CASE("white_noise: std_dev=+Inf, output contains Inf or NaN", "[ieee][gener
     CHECK(all_inf_or_nan);
 }
 
-TEST_CASE("white_noise: std_dev=0, output is all zeros", "[ieee][generate]")
+TEST_CASE("white_noise: std_dev=0 throws ValueError", "[ieee][generate]")
 {
-    auto x = white_noise(10, 0.0, 42u);
-    REQUIRE(x.size() == 10);
-    for (auto v : x)
-        CHECK_THAT(v, WithinAbs(0.0, 1e-12));
+    CHECK_THROWS_AS(white_noise(10, 0.0, 42u), cps::ValueError);
 }
 
 TEST_CASE("white_noise: std_dev=denorm_min, output near zero", "[ieee][generate]")

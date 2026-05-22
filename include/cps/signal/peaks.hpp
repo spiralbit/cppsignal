@@ -50,6 +50,8 @@ struct PeakResult {
 
     for (std::size_t pi = 0; pi < np; ++pi) {
         std::size_t idx = peak_indices[pi];
+        if (idx >= N)
+            throw ValueError("peak_prominences: peak index out of range");
         Real height = signal[idx];
 
         // ── Left base: walk OUTWARD from idx (right-to-left) until we hit a

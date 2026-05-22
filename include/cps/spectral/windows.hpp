@@ -138,7 +138,11 @@ namespace cps {
         // alpha = 0 → Rectangular, alpha = 1 → Hann.
         // The centre fraction (1-alpha) is all-ones; the edges taper with
         // a raised-cosine over alpha/2 of the window on each side.
+        if (std::isnan(param))
+            throw ValueError("make_window: Tukey alpha must not be NaN");
         const double alpha = (param <= 0.0) ? 0.5 : param;
+        if (alpha > 1.0)
+            throw ValueError("make_window: Tukey alpha must be in [0, 1]");
         const int    taper = static_cast<int>(std::floor(alpha * M / 2.0));
         // taper==0 when n is small relative to alpha (e.g. n<=4, alpha=0.5).
         // cos(π*i/0) is NaN; avoid it by treating as rectangular.

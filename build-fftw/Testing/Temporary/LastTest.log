@@ -1,0 +1,326 @@
+Start testing: May 22 01:29 BST
+----------------------------------------------------------
+1/17 Testing: test_fft
+1/17 Test: test_fft
+Command: "/Users/davidcarter/src/c++/cppsignal/build-fftw/tests/test_fft"
+Directory: /Users/davidcarter/src/c++/cppsignal/build-fftw/tests
+"test_fft" start time: May 22 01:29 BST
+Output:
+----------------------------------------------------------
+Randomness seeded to: 4199745794
+===============================================================================
+All tests passed (143 assertions in 8 test cases)
+
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"test_fft" end time: May 22 01:29 BST
+"test_fft" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/17 Testing: test_fft_extended
+2/17 Test: test_fft_extended
+Command: "/Users/davidcarter/src/c++/cppsignal/build-fftw/tests/test_fft_extended"
+Directory: /Users/davidcarter/src/c++/cppsignal/build-fftw/tests
+"test_fft_extended" start time: May 22 01:29 BST
+Output:
+----------------------------------------------------------
+Randomness seeded to: 683370410
+===============================================================================
+All tests passed (916 assertions in 20 test cases)
+
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"test_fft_extended" end time: May 22 01:29 BST
+"test_fft_extended" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/17 Testing: test_windows
+3/17 Test: test_windows
+Command: "/Users/davidcarter/src/c++/cppsignal/build-fftw/tests/test_windows"
+Directory: /Users/davidcarter/src/c++/cppsignal/build-fftw/tests
+"test_windows" start time: May 22 01:29 BST
+Output:
+----------------------------------------------------------
+Randomness seeded to: 771051432
+===============================================================================
+All tests passed (1670 assertions in 27 test cases)
+
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"test_windows" end time: May 22 01:29 BST
+"test_windows" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/17 Testing: test_filter_design
+4/17 Test: test_filter_design
+Command: "/Users/davidcarter/src/c++/cppsignal/build-fftw/tests/test_filter_design"
+Directory: /Users/davidcarter/src/c++/cppsignal/build-fftw/tests
+"test_filter_design" start time: May 22 01:29 BST
+Output:
+----------------------------------------------------------
+Randomness seeded to: 1380597406
+===============================================================================
+All tests passed (635 assertions in 12 test cases)
+
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"test_filter_design" end time: May 22 01:29 BST
+"test_filter_design" time elapsed: 00:00:00
+----------------------------------------------------------
+
+5/17 Testing: test_filter_extended
+5/17 Test: test_filter_extended
+Command: "/Users/davidcarter/src/c++/cppsignal/build-fftw/tests/test_filter_extended"
+Directory: /Users/davidcarter/src/c++/cppsignal/build-fftw/tests
+"test_filter_extended" start time: May 22 01:29 BST
+Output:
+----------------------------------------------------------
+Randomness seeded to: 246496624
+===============================================================================
+All tests passed (316 assertions in 37 test cases)
+
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"test_filter_extended" end time: May 22 01:29 BST
+"test_filter_extended" time elapsed: 00:00:00
+----------------------------------------------------------
+
+6/17 Testing: test_spectral
+6/17 Test: test_spectral
+Command: "/Users/davidcarter/src/c++/cppsignal/build-fftw/tests/test_spectral"
+Directory: /Users/davidcarter/src/c++/cppsignal/build-fftw/tests
+"test_spectral" start time: May 22 01:29 BST
+Output:
+----------------------------------------------------------
+Randomness seeded to: 318305541
+===============================================================================
+All tests passed (2107 assertions in 22 test cases)
+
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"test_spectral" end time: May 22 01:29 BST
+"test_spectral" time elapsed: 00:00:00
+----------------------------------------------------------
+
+7/17 Testing: test_generate
+7/17 Test: test_generate
+Command: "/Users/davidcarter/src/c++/cppsignal/build-fftw/tests/test_generate"
+Directory: /Users/davidcarter/src/c++/cppsignal/build-fftw/tests
+"test_generate" start time: May 22 01:29 BST
+Output:
+----------------------------------------------------------
+Randomness seeded to: 1088097376
+===============================================================================
+All tests passed (22954 assertions in 60 test cases)
+
+<end of output>
+Test time =   0.53 sec
+----------------------------------------------------------
+Test Passed.
+"test_generate" end time: May 22 01:29 BST
+"test_generate" time elapsed: 00:00:00
+----------------------------------------------------------
+
+8/17 Testing: test_peaks
+8/17 Test: test_peaks
+Command: "/Users/davidcarter/src/c++/cppsignal/build-fftw/tests/test_peaks"
+Directory: /Users/davidcarter/src/c++/cppsignal/build-fftw/tests
+"test_peaks" start time: May 22 01:29 BST
+Output:
+----------------------------------------------------------
+Randomness seeded to: 1527430633
+===============================================================================
+All tests passed (2071 assertions in 27 test cases)
+
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"test_peaks" end time: May 22 01:29 BST
+"test_peaks" time elapsed: 00:00:00
+----------------------------------------------------------
+
+9/17 Testing: test_stress
+9/17 Test: test_stress
+Command: "/Users/davidcarter/src/c++/cppsignal/build-fftw/tests/test_stress"
+Directory: /Users/davidcarter/src/c++/cppsignal/build-fftw/tests
+"test_stress" start time: May 22 01:29 BST
+Output:
+----------------------------------------------------------
+Randomness seeded to: 3598697649
+===============================================================================
+All tests passed (2426447 assertions in 76 test cases)
+
+<end of output>
+Test time =   2.19 sec
+----------------------------------------------------------
+Test Passed.
+"test_stress" end time: May 22 01:29 BST
+"test_stress" time elapsed: 00:00:02
+----------------------------------------------------------
+
+10/17 Testing: test_ieee_edge
+10/17 Test: test_ieee_edge
+Command: "/Users/davidcarter/src/c++/cppsignal/build-fftw/tests/test_ieee_edge"
+Directory: /Users/davidcarter/src/c++/cppsignal/build-fftw/tests
+"test_ieee_edge" start time: May 22 01:29 BST
+Output:
+----------------------------------------------------------
+Randomness seeded to: 3932272889
+===============================================================================
+All tests passed (433 assertions in 97 test cases)
+
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"test_ieee_edge" end time: May 22 01:29 BST
+"test_ieee_edge" time elapsed: 00:00:00
+----------------------------------------------------------
+
+11/17 Testing: test_generate_extended
+11/17 Test: test_generate_extended
+Command: "/Users/davidcarter/src/c++/cppsignal/build-fftw/tests/test_generate_extended"
+Directory: /Users/davidcarter/src/c++/cppsignal/build-fftw/tests
+"test_generate_extended" start time: May 22 01:29 BST
+Output:
+----------------------------------------------------------
+Randomness seeded to: 98182325
+===============================================================================
+All tests passed (9627 assertions in 44 test cases)
+
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"test_generate_extended" end time: May 22 01:29 BST
+"test_generate_extended" time elapsed: 00:00:00
+----------------------------------------------------------
+
+12/17 Testing: test_internals
+12/17 Test: test_internals
+Command: "/Users/davidcarter/src/c++/cppsignal/build-fftw/tests/test_internals"
+Directory: /Users/davidcarter/src/c++/cppsignal/build-fftw/tests
+"test_internals" start time: May 22 01:29 BST
+Output:
+----------------------------------------------------------
+Randomness seeded to: 2471439521
+===============================================================================
+All tests passed (873 assertions in 90 test cases)
+
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"test_internals" end time: May 22 01:29 BST
+"test_internals" time elapsed: 00:00:00
+----------------------------------------------------------
+
+13/17 Testing: test_stubs
+13/17 Test: test_stubs
+Command: "/Users/davidcarter/src/c++/cppsignal/build-fftw/tests/test_stubs"
+Directory: /Users/davidcarter/src/c++/cppsignal/build-fftw/tests
+"test_stubs" start time: May 22 01:29 BST
+Output:
+----------------------------------------------------------
+Randomness seeded to: 96692685
+===============================================================================
+All tests passed (58 assertions in 31 test cases)
+
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"test_stubs" end time: May 22 01:29 BST
+"test_stubs" time elapsed: 00:00:00
+----------------------------------------------------------
+
+14/17 Testing: test_adversarial
+14/17 Test: test_adversarial
+Command: "/Users/davidcarter/src/c++/cppsignal/build-fftw/tests/test_adversarial"
+Directory: /Users/davidcarter/src/c++/cppsignal/build-fftw/tests
+"test_adversarial" start time: May 22 01:29 BST
+Output:
+----------------------------------------------------------
+Randomness seeded to: 1029971102
+===============================================================================
+All tests passed (1246 assertions in 81 test cases)
+
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"test_adversarial" end time: May 22 01:29 BST
+"test_adversarial" time elapsed: 00:00:00
+----------------------------------------------------------
+
+15/17 Testing: test_validation
+15/17 Test: test_validation
+Command: "/Users/davidcarter/src/c++/cppsignal/build-fftw/tests/test_validation"
+Directory: /Users/davidcarter/src/c++/cppsignal/build-fftw/tests
+"test_validation" start time: May 22 01:29 BST
+Output:
+----------------------------------------------------------
+Randomness seeded to: 67274415
+===============================================================================
+All tests passed (91 assertions in 79 test cases)
+
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"test_validation" end time: May 22 01:29 BST
+"test_validation" time elapsed: 00:00:00
+----------------------------------------------------------
+
+16/17 Testing: test_review_bugs
+16/17 Test: test_review_bugs
+Command: "/Users/davidcarter/src/c++/cppsignal/build-fftw/tests/test_review_bugs"
+Directory: /Users/davidcarter/src/c++/cppsignal/build-fftw/tests
+"test_review_bugs" start time: May 22 01:29 BST
+Output:
+----------------------------------------------------------
+Randomness seeded to: 3020259582
+===============================================================================
+All tests passed (51 assertions in 30 test cases)
+
+<end of output>
+Test time =   0.04 sec
+----------------------------------------------------------
+Test Passed.
+"test_review_bugs" end time: May 22 01:29 BST
+"test_review_bugs" time elapsed: 00:00:00
+----------------------------------------------------------
+
+17/17 Testing: test_fftw_backend
+17/17 Test: test_fftw_backend
+Command: "/Users/davidcarter/src/c++/cppsignal/build-fftw/tests/test_fftw_backend"
+Directory: /Users/davidcarter/src/c++/cppsignal/build-fftw/tests
+"test_fftw_backend" start time: May 22 01:29 BST
+Output:
+----------------------------------------------------------
+Randomness seeded to: 2387392228
+===============================================================================
+All tests passed (1300 assertions in 10 test cases)
+
+<end of output>
+Test time =  37.66 sec
+----------------------------------------------------------
+Test Passed.
+"test_fftw_backend" end time: May 22 01:30 BST
+"test_fftw_backend" time elapsed: 00:00:37
+----------------------------------------------------------
+
+End testing: May 22 01:30 BST

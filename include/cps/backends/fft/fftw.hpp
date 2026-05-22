@@ -45,6 +45,8 @@
 #include <stdexcept>
 #include <string_view>
 #include <cstddef>
+#include <limits>
+#include "../../core/result.hpp"
 
 namespace cps::backends {
 
@@ -84,7 +86,8 @@ inline fftw_plan get_plan(PlanEntry& e, std::size_t n, Maker maker)
     if (e.n == n) return e.plan;
     std::lock_guard lk(s_plan_mtx);
     if (e.plan) fftw_destroy_plan(e.plan);
-    e.plan = maker(n);
+    e.plan = nullptr; e.n = 0;   // clear before maker so a throw leaves a clean state
+    e.plan = maker(n);           // throws ValueError on allocation or planning failure
     e.n    = n;
     return e.plan;
 }
@@ -100,15 +103,18 @@ struct FFTW {
                  std::span<std::complex<double>>       out) const
     {
         const std::size_t N = in.size();
+        if (N > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+            throw cps::ValueError("FFTW: transform size exceeds INT_MAX");
         fftw_plan plan = detail_fftw::get_plan(
             detail_fftw::this_thread_cache().fwd, N,
             [](std::size_t n) {
-                // Dummy buffers for FFTW_ESTIMATE planning (buffers not read).
                 auto* a = reinterpret_cast<fftw_complex*>(fftw_malloc(n * sizeof(fftw_complex)));
                 auto* b = reinterpret_cast<fftw_complex*>(fftw_malloc(n * sizeof(fftw_complex)));
+                if (!a || !b) { fftw_free(a); fftw_free(b); throw cps::ValueError("FFTW: out of memory"); }
                 fftw_plan p = fftw_plan_dft_1d(static_cast<int>(n), a, b,
                                                FFTW_FORWARD, FFTW_ESTIMATE);
                 fftw_free(a); fftw_free(b);
+                if (!p) throw cps::ValueError("FFTW: plan creation failed");
                 return p;
             });
 
@@ -123,14 +129,18 @@ struct FFTW {
                  std::span<std::complex<double>>       out) const
     {
         const std::size_t N = in.size();
+        if (N > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+            throw cps::ValueError("FFTW: transform size exceeds INT_MAX");
         fftw_plan plan = detail_fftw::get_plan(
             detail_fftw::this_thread_cache().inv, N,
             [](std::size_t n) {
                 auto* a = reinterpret_cast<fftw_complex*>(fftw_malloc(n * sizeof(fftw_complex)));
                 auto* b = reinterpret_cast<fftw_complex*>(fftw_malloc(n * sizeof(fftw_complex)));
+                if (!a || !b) { fftw_free(a); fftw_free(b); throw cps::ValueError("FFTW: out of memory"); }
                 fftw_plan p = fftw_plan_dft_1d(static_cast<int>(n), a, b,
                                                FFTW_BACKWARD, FFTW_ESTIMATE);
                 fftw_free(a); fftw_free(b);
+                if (!p) throw cps::ValueError("FFTW: plan creation failed");
                 return p;
             });
 
@@ -148,14 +158,18 @@ struct FFTW {
               std::span<std::complex<double>> out) const
     {
         const std::size_t N = in.size();
+        if (N > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+            throw cps::ValueError("FFTW: transform size exceeds INT_MAX");
         fftw_plan plan = detail_fftw::get_plan(
             detail_fftw::this_thread_cache().rfwd, N,
             [](std::size_t n) {
                 auto* a = static_cast<double*>(fftw_malloc(n * sizeof(double)));
                 auto* b = reinterpret_cast<fftw_complex*>(
                               fftw_malloc((n / 2 + 1) * sizeof(fftw_complex)));
+                if (!a || !b) { fftw_free(a); fftw_free(b); throw cps::ValueError("FFTW: out of memory"); }
                 fftw_plan p = fftw_plan_dft_r2c_1d(static_cast<int>(n), a, b, FFTW_ESTIMATE);
                 fftw_free(a); fftw_free(b);
+                if (!p) throw cps::ValueError("FFTW: plan creation failed");
                 return p;
             });
 
@@ -168,14 +182,18 @@ struct FFTW {
                std::span<double>                    out,
                std::size_t                          n_original) const
     {
+        if (n_original > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+            throw cps::ValueError("FFTW: transform size exceeds INT_MAX");
         fftw_plan plan = detail_fftw::get_plan(
             detail_fftw::this_thread_cache().rinv, n_original,
             [](std::size_t n) {
                 auto* a = reinterpret_cast<fftw_complex*>(
                               fftw_malloc((n / 2 + 1) * sizeof(fftw_complex)));
                 auto* b = static_cast<double*>(fftw_malloc(n * sizeof(double)));
+                if (!a || !b) { fftw_free(a); fftw_free(b); throw cps::ValueError("FFTW: out of memory"); }
                 fftw_plan p = fftw_plan_dft_c2r_1d(static_cast<int>(n), a, b, FFTW_ESTIMATE);
                 fftw_free(a); fftw_free(b);
+                if (!p) throw cps::ValueError("FFTW: plan creation failed");
                 return p;
             });
 

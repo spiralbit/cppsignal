@@ -381,6 +381,8 @@ inline double normalise_wn(double Wn, const FilterOptions& opts) {
 {
     if (numtaps <= 0)
         throw ValueError("firwin: numtaps must be > 0");
+    if (numtaps == 1)
+        return {Real(1.0)};   // 1-sample window is 1.0 for every window type
     if (numtaps % 2 == 0 && type == FilterType::Highpass)
         throw ValueError("firwin: even numtaps with Highpass gives zero gain at Nyquist — use odd numtaps");
 

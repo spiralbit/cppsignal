@@ -36,7 +36,10 @@ namespace cps {
 [[nodiscard]] inline std::vector<Real> arange(Real start, Real stop, Real step = 1.0)
 {
     if (step == 0.0 || std::isnan(step)) throw ValueError("arange: step must not be zero or NaN");
-    std::size_t n = static_cast<std::size_t>(std::max(0.0, std::ceil((stop - start) / step)));
+    double count_d = std::max(0.0, std::ceil((stop - start) / step));
+    if (count_d > 1e15)
+        throw ValueError("arange: range too large (would exceed 10^15 elements)");
+    std::size_t n = static_cast<std::size_t>(count_d);
     std::vector<Real> t(n);
     for (std::size_t i = 0; i < n; ++i)
         t[i] = start + i * step;
@@ -208,6 +211,8 @@ namespace cps {
 [[nodiscard]] inline std::vector<Real> white_noise(std::size_t n, Real std_dev = 1.0,
                                                    unsigned int seed = 42)
 {
+    if (!(std_dev > 0.0))
+        throw ValueError("white_noise: std_dev must be > 0");
     std::mt19937                     rng(seed == 0
                                              ? static_cast<unsigned>(std::chrono::steady_clock::now()
                                                                           .time_since_epoch().count())

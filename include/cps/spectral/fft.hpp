@@ -146,6 +146,8 @@ template<FFTBackend B = backends::PocketFFT>
 {
     if (n == 0)
         throw ValueError("fftfreq: n must be > 0");
+    if (!(d > 0.0))
+        throw ValueError("fftfreq: d must be > 0 (d = 1/fs; use 1.0 for normalised frequencies)");
 
     std::vector<Real> freq(n);
     const double inv_nd = 1.0 / (static_cast<double>(n) * d);
@@ -174,6 +176,8 @@ template<FFTBackend B = backends::PocketFFT>
 {
     if (n == 0)
         throw ValueError("rfftfreq: n must be > 0");
+    if (!(d > 0.0))
+        throw ValueError("rfftfreq: d must be > 0 (d = 1/fs; use 1.0 for normalised frequencies)");
 
     const std::size_t Nout = n / 2 + 1;
     std::vector<Real> freq(Nout);
