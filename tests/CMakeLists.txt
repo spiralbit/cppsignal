@@ -15,6 +15,7 @@ set(CPS_TESTS
     test_adversarial
     test_validation
     test_review_bugs
+    test_pocketfft_backend
 )
 
 foreach(t ${CPS_TESTS})
