@@ -11,6 +11,7 @@
 #include <catch2/catch_approx.hpp>
 #include <cps/cps.hpp>
 #include <cmath>
+#include <functional>
 #include <limits>
 #include <vector>
 #include <string>

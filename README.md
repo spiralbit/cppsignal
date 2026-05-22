@@ -133,6 +133,23 @@ cmake --build cppsignal-build --config Debug
 ctest --test-dir cppsignal-build -C Debug --output-on-failure
 ```
 
+### Visual Studio environment setup
+
+If CMake reports that `nmake` or `cl` cannot be found, make sure to run the MSVC developer environment first. Open a Visual Studio Developer PowerShell or source `vcvarsall.bat` from your Visual Studio installation before configuring/building:
+
+```powershell
+& 'C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat' x64
+cmake -S cppsignal -B cppsignal-build -G "NMake Makefiles" -DCPS_BUILD_TESTS=ON
+cmake --build cppsignal-build
+ctest --test-dir cppsignal-build --output-on-failure
+```
+
+If your path contains spaces and PowerShell has trouble, use the short path form:
+
+```powershell
+cmd.exe /c '"C:\PROGRA~1\MICROS~4\18\COMMUN~1\VC\AUXILI~1\Build\VCVARS~1.BAT" x64 > nul && cmake -S cppsignal -B cppsignal-build -G "NMake Makefiles" -DCPS_BUILD_TESTS=ON'
+```
+
 ### Code coverage on Windows — OpenCppCoverage
 
 OpenCppCoverage instruments test executables at runtime using the Windows debug API, so no special compiler flags are needed.
