@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(cppsignal VERSION 0.1.0 LANGUAGES CXX)
+project(cppsignal VERSION 0.2.1 LANGUAGES CXX)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CppSignal — a modern C++20 signal processing library
@@ -11,7 +11,7 @@ project(cppsignal VERSION 0.1.0 LANGUAGES CXX)
 #   • MIT licensed: no copyleft, usable in commercial code
 #
 # Quick start (FetchContent):
-#   FetchContent_Declare(cppsignal GIT_REPOSITORY ... GIT_TAG v0.1.0)
+#   FetchContent_Declare(cppsignal GIT_REPOSITORY ... GIT_TAG v0.2.1)
 #   FetchContent_MakeAvailable(cppsignal)
 #   target_link_libraries(myapp PRIVATE cppsignal::cppsignal)
 # ─────────────────────────────────────────────────────────────────────────────
