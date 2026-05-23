@@ -1,6 +1,9 @@
 #include "filter.hpp"
 #include <cps/cps.hpp>
+#include <complex>
+#include <cmath>
 #include <istream>
+#include <numbers>
 #include <optional>
 #include <ostream>
 #include <stdexcept>
@@ -19,6 +22,137 @@ static cps::FilterType to_cps_type(FilterShape shape)
     throw std::invalid_argument("unknown filter shape");
 }
 
+// ── Butterworth bandstop/bandpass via LP prototype + bilinear ─────────────────
+//
+// The LP+HP summation approach fails for IIR because the two filters have
+// different phase responses — the residual at the target frequency doesn't
+// cancel. Instead we derive proper bandstop/bandpass SOS directly.
+//
+// Algorithm (mirrors scipy.signal.butter with btype='bandstop'/'bandpass'):
+//   1. Pre-warp edge frequencies for the bilinear transform.
+//   2. Compute Butterworth LP analog prototype poles (order N).
+//   3. Apply LP->BS or LP->BP frequency transformation (each LP pole -> 2 poles).
+//   4. Apply bilinear transform s->z.
+//   5. Pair complex-conjugate poles into biquad sections.
+//   6. Normalise gain.
+
+static cps::SOS butter_bandstop_sos(int N, double fc1, double fc2, double fs)
+{
+    using Cx = std::complex<double>;
+    const double pi = std::numbers::pi;
+
+    // Step 1: pre-warp edge frequencies
+    const double W1  = 2.0 * fs * std::tan(pi * fc1 / fs);
+    const double W2  = 2.0 * fs * std::tan(pi * fc2 / fs);
+    const double W0  = std::sqrt(W1 * W2);    // analog center frequency
+    const double BW  = W2 - W1;               // analog bandwidth
+    const double kbt = 2.0 * fs;              // bilinear constant
+
+    // Digital notch frequency: th0 = 2*atan(W0 / 2fs)
+    const double th0     = 2.0 * std::atan2(W0, kbt);
+    const double cos_th0 = std::cos(th0);
+
+    cps::SOS sos;
+
+    // Add one biquad section from a complex BS pole zp (and its conjugate)
+    auto add_biquad = [&](Cx zp) {
+        const double a1 = -2.0 * zp.real();
+        const double a2 = std::norm(zp);
+        // BS numerator: (z - exp(j*th0))(z - exp(-j*th0)) = z^2 - 2*cos(th0)*z + 1
+        sos.push_back({1.0, -2.0 * cos_th0, 1.0, 1.0, a1, a2});
+    };
+
+    // Steps 3+4: LP->BS transformation then bilinear, for one upper LP pole
+    // Each LP pole p -> 2 BS analog poles -> 2 digital biquad sections
+    auto process_bs = [&](Cx p) {
+        const Cx bp   = BW * p;
+        const Cx disc = std::sqrt(bp * bp - Cx{4.0 * W0 * W0, 0.0});
+        add_biquad((kbt + (bp + disc) / 2.0) / (kbt - (bp + disc) / 2.0));
+        add_biquad((kbt + (bp - disc) / 2.0) / (kbt - (bp - disc) / 2.0));
+    };
+
+    // Upper half-plane LP poles (conjugates handled by real-coefficient biquad)
+    const int n_pairs = N / 2;
+    for (int k = 0; k < n_pairs; ++k) {
+        const double angle = pi * (2*(k+1) + N - 1) / (2.0 * N);
+        process_bs({std::cos(angle), std::sin(angle)});
+    }
+    // Odd N: one real LP pole at exp(j*pi) = -1
+    if (N % 2 == 1) {
+        const Cx bp   = Cx{-BW, 0.0};
+        const Cx disc = std::sqrt(bp * bp - Cx{4.0 * W0 * W0, 0.0});
+        const Cx s1   = (bp + disc) / 2.0;
+        add_biquad((kbt + s1) / (kbt - s1));
+    }
+
+    // Step 6: normalise so DC gain = 1
+    double dc_gain = 1.0;
+    for (const auto& row : sos) {
+        dc_gain *= (row[0] + row[1] + row[2]) / (1.0 + row[4] + row[5]);
+    }
+    const double scale = std::pow(1.0 / dc_gain, 1.0 / static_cast<double>(sos.size()));
+    for (auto& row : sos) { row[0] *= scale; row[1] *= scale; row[2] *= scale; }
+
+    return sos;
+}
+
+static cps::SOS butter_bandpass_sos(int N, double fc1, double fc2, double fs)
+{
+    using Cx = std::complex<double>;
+    const double pi = std::numbers::pi;
+
+    const double W1  = 2.0 * fs * std::tan(pi * fc1 / fs);
+    const double W2  = 2.0 * fs * std::tan(pi * fc2 / fs);
+    const double W0  = std::sqrt(W1 * W2);
+    const double BW  = W2 - W1;
+    const double kbt = 2.0 * fs;
+
+    cps::SOS sos;
+
+    // BP biquad: zeros at z=+1 and z=-1 -> numerator [1, 0, -1]
+    auto add_biquad = [&](Cx zp) {
+        const double a1 = -2.0 * zp.real();
+        const double a2 = std::norm(zp);
+        sos.push_back({1.0, 0.0, -1.0, 1.0, a1, a2});
+    };
+
+    auto process_bp = [&](Cx p) {
+        const Cx bp   = BW * p;
+        const Cx disc = std::sqrt(bp * bp - Cx{4.0 * W0 * W0, 0.0});
+        add_biquad((kbt + (bp + disc) / 2.0) / (kbt - (bp + disc) / 2.0));
+        add_biquad((kbt + (bp - disc) / 2.0) / (kbt - (bp - disc) / 2.0));
+    };
+
+    const int n_pairs = N / 2;
+    for (int k = 0; k < n_pairs; ++k) {
+        const double angle = pi * (2*(k+1) + N - 1) / (2.0 * N);
+        process_bp({std::cos(angle), std::sin(angle)});
+    }
+    if (N % 2 == 1) {
+        const Cx bp   = Cx{-BW, 0.0};
+        const Cx disc = std::sqrt(bp * bp - Cx{4.0 * W0 * W0, 0.0});
+        const Cx s1   = (bp + disc) / 2.0;
+        add_biquad((kbt + s1) / (kbt - s1));
+    }
+
+    // Normalise to unity gain at the digital centre frequency
+    const double th_centre = 2.0 * std::atan2(W0, kbt);
+    const Cx z_c = std::polar(1.0, th_centre);
+    Cx num{1.0, 0.0}, den{1.0, 0.0};
+    for (const auto& row : sos) {
+        const Cx zi = 1.0 / z_c;
+        num *= row[0] + row[1]*zi + row[2]*zi*zi;
+        den *= 1.0   + row[4]*zi + row[5]*zi*zi;
+    }
+    const double centre_gain = std::abs(num) / std::abs(den);
+    const double scale = std::pow(1.0 / centre_gain, 1.0 / static_cast<double>(sos.size()));
+    for (auto& row : sos) { row[0] *= scale; row[1] *= scale; row[2] *= scale; }
+
+    return sos;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 std::size_t filter_stream(std::istream& in, std::ostream& out, const FilterOptions& opts)
 {
     StreamHeader hdr = read_header(in);
@@ -32,30 +166,19 @@ std::size_t filter_stream(std::istream& in, std::ostream& out, const FilterOptio
     cps::FilterOptions fopts{.fs = fs};
 
     if (opts.impl == FilterImpl::Butter) {
-        if (opts.shape == FilterShape::Bandpass) {
-            // Approximate bandpass as cascaded LP + HP
-            auto lp  = cps::butter(opts.order, opts.cutoff_high, cps::FilterType::Lowpass,  fopts);
-            auto hp  = cps::butter(opts.order, opts.cutoff_low,  cps::FilterType::Highpass, fopts);
-            auto tmp = cps::sosfilt(lp, signal);
-            filtered = cps::sosfilt(hp, tmp);
-        } else if (opts.shape == FilterShape::Bandstop) {
-            // Bandstop = sum of LP (below stop) and HP (above stop) outputs
-            auto lp     = cps::butter(opts.order, opts.cutoff_low,  cps::FilterType::Lowpass,  fopts);
-            auto hp     = cps::butter(opts.order, opts.cutoff_high, cps::FilterType::Highpass, fopts);
-            auto lp_out = cps::sosfilt(lp, signal);
-            auto hp_out = cps::sosfilt(hp, signal);
-            filtered.resize(signal.size());
-            for (std::size_t i = 0; i < signal.size(); ++i)
-                filtered[i] = lp_out[i] + hp_out[i];
-        } else {
-            auto sos = cps::butter(opts.order, opts.cutoff, to_cps_type(opts.shape), fopts);
-            filtered = cps::sosfilt(sos, signal);
-        }
+        cps::SOS sos;
+        if (opts.shape == FilterShape::Bandpass)
+            sos = butter_bandpass_sos(opts.order, opts.cutoff_low, opts.cutoff_high, fs);
+        else if (opts.shape == FilterShape::Bandstop)
+            sos = butter_bandstop_sos(opts.order, opts.cutoff_low, opts.cutoff_high, fs);
+        else
+            sos = cps::butter(opts.order, opts.cutoff, to_cps_type(opts.shape), fopts);
+        filtered = cps::sosfilt(sos, signal);
     } else {
         // FirWin: cutoff normalised to [0,1] where 1 = Nyquist
-        double norm_cutoff = opts.cutoff / nyq;
+        const double norm_cutoff = opts.cutoff / nyq;
         auto h = cps::firwin(opts.taps, norm_cutoff, cps::Window::Hamming,
-                              to_cps_type(opts.shape));
+                             to_cps_type(opts.shape));
         std::vector<cps::Real> a = {1.0};
         filtered = cps::lfilter(h, a, signal);
     }
@@ -69,8 +192,8 @@ std::size_t filter_stream(std::istream& in, std::ostream& out, const FilterOptio
 FilterOptions parse_filter_args(int argc, char** argv)
 {
     FilterOptions opts;
-    bool cutoff_set     = false;
-    bool cutoff_low_set = false;
+    bool cutoff_set      = false;
+    bool cutoff_low_set  = false;
     bool cutoff_high_set = false;
     std::optional<double> sample_rate_hint;
 
