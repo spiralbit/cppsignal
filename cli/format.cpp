@@ -18,6 +18,8 @@ void write_header(std::ostream& out, const StreamHeader& h)
     out.write(reinterpret_cast<const char*>(&fmt), 1);
     out.write(reinterpret_cast<const char*>(&h.channels),    2);
     out.write(reinterpret_cast<const char*>(&h.sample_rate), 4);
+    if (!out)
+        throw std::runtime_error("write_header: I/O error (broken pipe?)");
 }
 
 StreamHeader read_header(std::istream& in)
@@ -46,11 +48,15 @@ StreamHeader read_header(std::istream& in)
 void write_samples(std::ostream& out, std::span<const float> s, const StreamHeader&)
 {
     out.write(reinterpret_cast<const char*>(s.data()), static_cast<std::streamsize>(s.size_bytes()));
+    if (!out)
+        throw std::runtime_error("write_samples: I/O error (broken pipe?)");
 }
 
 void write_samples(std::ostream& out, std::span<const double> s, const StreamHeader&)
 {
     out.write(reinterpret_cast<const char*>(s.data()), static_cast<std::streamsize>(s.size_bytes()));
+    if (!out)
+        throw std::runtime_error("write_samples: I/O error (broken pipe?)");
 }
 
 std::vector<float> read_samples_f32(std::istream& in, const StreamHeader& h)
@@ -60,10 +66,14 @@ std::vector<float> read_samples_f32(std::istream& in, const StreamHeader& h)
         float f;
         while (in.read(reinterpret_cast<char*>(&f), sizeof(float)))
             out.push_back(f);
+        if (in.gcount() > 0)
+            throw std::runtime_error("CPS stream: truncated sample data (partial float32)");
     } else {
         double d;
         while (in.read(reinterpret_cast<char*>(&d), sizeof(double)))
             out.push_back(static_cast<float>(d));
+        if (in.gcount() > 0)
+            throw std::runtime_error("CPS stream: truncated sample data (partial float64)");
     }
     return out;
 }

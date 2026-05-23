@@ -223,6 +223,32 @@ TEST_CASE("bandstop: tone outside stopband passes through", "[cli][filter][bs]")
     CHECK(steady_rms(samples, hdr.sample_rate) > 0.3);
 }
 
+// ── Odd-order Butterworth (exercises real-pole path) ─────────────────────────
+
+TEST_CASE("bandstop order 3 (odd): tone within stopband is attenuated", "[cli][filter][bs]")
+{
+    FilterOptions fopts;
+    fopts.shape       = FilterShape::Bandstop;
+    fopts.cutoff_low  = 800.0;
+    fopts.cutoff_high = 1200.0;
+    fopts.order       = 3;
+
+    auto [hdr, samples] = sine_through_filter(1000.0, 44100, fopts);
+    CHECK(steady_rms(samples, hdr.sample_rate) < 0.3);
+}
+
+TEST_CASE("bandpass order 3 (odd): tone within passband passes", "[cli][filter][bp]")
+{
+    FilterOptions fopts;
+    fopts.shape       = FilterShape::Bandpass;
+    fopts.cutoff_low  = 800.0;
+    fopts.cutoff_high = 1200.0;
+    fopts.order       = 3;
+
+    auto [hdr, samples] = sine_through_filter(1000.0, 44100, fopts);
+    CHECK(steady_rms(samples, hdr.sample_rate) > 0.1);
+}
+
 // ── FIR ───────────────────────────────────────────────────────────────────────
 
 TEST_CASE("firwin lowpass attenuates a tone well above cutoff", "[cli][filter][firwin]")

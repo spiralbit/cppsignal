@@ -116,6 +116,8 @@ GenerateOptions parse_generate_args(int argc, char** argv)
         }
     }
 
+    if (!type_set)
+        throw std::invalid_argument("--type is required");
     if (opts.amplitude <= 0.0)
         throw std::invalid_argument("--amplitude must be > 0");
     if (opts.duration <= 0.0)
@@ -127,6 +129,14 @@ GenerateOptions parse_generate_args(int argc, char** argv)
     if (opts.type == GenerateType::Sine && opts.freq >= nyquist)
         throw std::invalid_argument("--freq " + std::to_string(opts.freq) +
                                     " Hz exceeds Nyquist (" + std::to_string(nyquist) + " Hz)");
+    if (opts.type == GenerateType::Chirp) {
+        if (opts.freq_start >= nyquist)
+            throw std::invalid_argument("--freq-start " + std::to_string(opts.freq_start) +
+                                        " Hz exceeds Nyquist (" + std::to_string(nyquist) + " Hz)");
+        if (opts.freq_end >= nyquist)
+            throw std::invalid_argument("--freq-end " + std::to_string(opts.freq_end) +
+                                        " Hz exceeds Nyquist (" + std::to_string(nyquist) + " Hz)");
+    }
 
     return opts;
 }

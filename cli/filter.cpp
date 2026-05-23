@@ -175,6 +175,8 @@ std::size_t filter_stream(std::istream& in, std::ostream& out, const FilterOptio
             sos = cps::butter(opts.order, opts.cutoff, to_cps_type(opts.shape), fopts);
         filtered = cps::sosfilt(sos, signal);
     } else {
+        if (opts.shape == FilterShape::Bandpass || opts.shape == FilterShape::Bandstop)
+            throw std::invalid_argument("FIR bandpass/bandstop is not supported; use --type butter");
         // FirWin: cutoff normalised to [0,1] where 1 = Nyquist
         const double norm_cutoff = opts.cutoff / nyq;
         auto h = cps::firwin(opts.taps, norm_cutoff, cps::Window::Hamming,

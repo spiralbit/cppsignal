@@ -287,6 +287,16 @@ TEST_CASE("parse_generate_args throws on unknown generator type", "[cli][generat
         std::invalid_argument);
 }
 
+TEST_CASE("parse_generate_args throws when chirp freq-end exceeds Nyquist", "[cli][generate][args]")
+{
+    const char* argv[] = {"cps", "generate", "--type", "chirp",
+                          "--freq-start", "100", "--freq-end", "30000",
+                          "--duration", "1", "--sample-rate", "44100"};
+    CHECK_THROWS_AS(
+        parse_generate_args(12, const_cast<char**>(argv)),
+        std::invalid_argument);
+}
+
 TEST_CASE("parse_generate_args throws when sine frequency exceeds Nyquist", "[cli][generate][args]")
 {
     const char* argv[] = {"cps", "generate", "--type", "sine",
