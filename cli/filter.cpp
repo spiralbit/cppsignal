@@ -1,8 +1,10 @@
 #include "filter.hpp"
 #include <cps/cps.hpp>
 #include <istream>
+#include <optional>
 #include <ostream>
 #include <stdexcept>
+#include <string>
 
 namespace cps::cli {
 
@@ -66,9 +68,64 @@ std::size_t filter_stream(std::istream& in, std::ostream& out, const FilterOptio
 
 FilterOptions parse_filter_args(int argc, char** argv)
 {
-    // TODO: implement argument parsing
-    (void)argc; (void)argv;
-    throw std::logic_error("parse_filter_args: not yet implemented");
+    FilterOptions opts;
+    bool cutoff_set     = false;
+    bool cutoff_low_set = false;
+    bool cutoff_high_set = false;
+    std::optional<double> sample_rate_hint;
+
+    for (int i = 2; i + 1 < argc; i += 2) {
+        std::string_view key{argv[i]};
+        std::string_view val{argv[i + 1]};
+
+        if (key == "--type") {
+            if      (val == "butter") opts.impl = FilterImpl::Butter;
+            else if (val == "firwin") opts.impl = FilterImpl::FirWin;
+            else throw std::invalid_argument("unknown filter type: " + std::string(val));
+        } else if (key == "--shape") {
+            if      (val == "lowpass")  opts.shape = FilterShape::Lowpass;
+            else if (val == "highpass") opts.shape = FilterShape::Highpass;
+            else if (val == "bandpass") opts.shape = FilterShape::Bandpass;
+            else if (val == "bandstop") opts.shape = FilterShape::Bandstop;
+            else throw std::invalid_argument("unknown filter shape: " + std::string(val));
+        } else if (key == "--order") {
+            opts.order = std::stoi(std::string(val));
+        } else if (key == "--taps") {
+            opts.taps = std::stoi(std::string(val));
+        } else if (key == "--cutoff") {
+            opts.cutoff = std::stod(std::string(val));
+            cutoff_set = true;
+        } else if (key == "--cutoff-low") {
+            opts.cutoff_low = std::stod(std::string(val));
+            cutoff_low_set = true;
+        } else if (key == "--cutoff-high") {
+            opts.cutoff_high = std::stod(std::string(val));
+            cutoff_high_set = true;
+        } else if (key == "--sample-rate") {
+            sample_rate_hint = std::stod(std::string(val));
+        } else {
+            throw std::invalid_argument("unknown option: " + std::string(key));
+        }
+    }
+
+    if (opts.order <= 0)
+        throw std::invalid_argument("--order must be > 0");
+
+    if (opts.shape == FilterShape::Lowpass || opts.shape == FilterShape::Highpass) {
+        if (!cutoff_set || opts.cutoff <= 0.0)
+            throw std::invalid_argument("--cutoff required for lowpass/highpass and must be > 0");
+        if (sample_rate_hint && opts.cutoff >= *sample_rate_hint / 2.0)
+            throw std::invalid_argument("--cutoff exceeds Nyquist frequency");
+    }
+
+    if (opts.shape == FilterShape::Bandpass || opts.shape == FilterShape::Bandstop) {
+        if (!cutoff_low_set || !cutoff_high_set)
+            throw std::invalid_argument("--cutoff-low and --cutoff-high required for bandpass/bandstop");
+        if (opts.cutoff_low >= opts.cutoff_high)
+            throw std::invalid_argument("--cutoff-low must be less than --cutoff-high");
+    }
+
+    return opts;
 }
 
 } // namespace cps::cli

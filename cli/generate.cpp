@@ -3,6 +3,7 @@
 #include <ostream>
 #include <random>
 #include <stdexcept>
+#include <string>
 
 namespace cps::cli {
 
@@ -80,9 +81,54 @@ std::size_t generate(std::ostream& out, const GenerateOptions& opts)
 
 GenerateOptions parse_generate_args(int argc, char** argv)
 {
-    // TODO: implement argument parsing
-    (void)argc; (void)argv;
-    throw std::logic_error("parse_generate_args: not yet implemented");
+    GenerateOptions opts;
+    bool type_set = false;
+
+    for (int i = 2; i + 1 < argc; i += 2) {
+        std::string_view key{argv[i]};
+        std::string_view val{argv[i + 1]};
+
+        if (key == "--type") {
+            type_set = true;
+            if      (val == "sine")  opts.type = GenerateType::Sine;
+            else if (val == "chirp") opts.type = GenerateType::Chirp;
+            else if (val == "white") opts.type = GenerateType::White;
+            else if (val == "pink")  opts.type = GenerateType::Pink;
+            else throw std::invalid_argument("unknown generator type: " + std::string(val));
+        } else if (key == "--freq") {
+            opts.freq = std::stod(std::string(val));
+        } else if (key == "--freq-start") {
+            opts.freq_start = std::stod(std::string(val));
+        } else if (key == "--freq-end") {
+            opts.freq_end = std::stod(std::string(val));
+        } else if (key == "--amplitude") {
+            opts.amplitude = std::stod(std::string(val));
+        } else if (key == "--duration") {
+            opts.duration = std::stod(std::string(val));
+        } else if (key == "--sample-rate") {
+            opts.sample_rate = static_cast<uint32_t>(std::stoul(std::string(val)));
+        } else if (key == "--channels") {
+            opts.channels = static_cast<uint16_t>(std::stoul(std::string(val)));
+        } else if (key == "--seed") {
+            opts.seed = static_cast<unsigned>(std::stoul(std::string(val)));
+        } else {
+            throw std::invalid_argument("unknown option: " + std::string(key));
+        }
+    }
+
+    if (opts.amplitude <= 0.0)
+        throw std::invalid_argument("--amplitude must be > 0");
+    if (opts.duration <= 0.0)
+        throw std::invalid_argument("--duration must be > 0");
+    if (opts.sample_rate == 0)
+        throw std::invalid_argument("--sample-rate must be > 0");
+
+    const double nyquist = opts.sample_rate / 2.0;
+    if (opts.type == GenerateType::Sine && opts.freq >= nyquist)
+        throw std::invalid_argument("--freq " + std::to_string(opts.freq) +
+                                    " Hz exceeds Nyquist (" + std::to_string(nyquist) + " Hz)");
+
+    return opts;
 }
 
 } // namespace cps::cli
