@@ -3,7 +3,7 @@
 `cps` is a UNIX-pipeline tool built on top of the cppsignal library. Each invocation reads or writes a self-describing binary stream, so multiple stages can be chained with `|` to build signal-processing pipelines without temporary files.
 
 ```
-cps generate [options] | cps filter [options] | <audio-player>
+cps generate [options] | cps filter [options] | cps play
 ```
 
 ## Contents
@@ -13,6 +13,7 @@ cps generate [options] | cps filter [options] | <audio-player>
 - [Exit codes](#exit-codes)
 - [cps generate](#cps-generate)
 - [cps filter](#cps-filter)
+- [cps play](#cps-play)
 - [Playing audio with external tools](#playing-audio-with-external-tools)
 - [Examples](#examples)
 
@@ -188,6 +189,33 @@ Windowed-sinc FIR filter using a Hamming window.
 
 ---
 
+## cps play
+
+Reads a CPS stream from stdin and plays it on the default audio device. Blocks until playback is complete.
+
+```
+cps play
+```
+
+`cps play` accepts no options — all parameters (sample rate, channel count, sample format) are read from the CPS stream header automatically.
+
+Uses [miniaudio](https://miniaud.io/) internally: WASAPI on Windows, CoreAudio on macOS, and ALSA/PulseAudio/JACK on Linux. No external audio libraries need to be installed.
+
+### Examples
+
+```sh
+# Play a 440 Hz sine tone
+cps generate --type sine --freq 440 --duration 2 | cps play
+
+# Pink noise through a lowpass filter
+cps generate --type pink --duration 5 | cps filter --shape lowpass --cutoff 2000 | cps play
+
+# 48 kHz chirp sweep
+cps generate --type chirp --freq-start 200 --freq-end 8000 --duration 4 --sample-rate 48000 | cps play
+```
+
+---
+
 ## Playing audio with external tools
 
 `cps` streams begin with a 12-byte binary header (see [Wire format](#wire-format)). External players such as SoX `play` expect raw samples with no header, so the header must be stripped before passing the stream to them.
@@ -211,17 +239,13 @@ cps generate --type sine --freq 440 --duration 1 \
 ### 1. Generate a 1-second 440 Hz sine and play it
 
 ```sh
-cps generate --type sine --freq 440 --duration 1 \
-  | tail -c +13 \
-  | play -t raw -r 44100 -e float -b 32 -c 1 -
+cps generate --type sine --freq 440 --duration 1 | cps play
 ```
 
 ### 2. Generate 5 seconds of pink noise
 
 ```sh
-cps generate --type pink --duration 5 --amplitude 0.5 --seed 42 \
-  | tail -c +13 \
-  | play -t raw -r 44100 -e float -b 32 -c 1 -
+cps generate --type pink --duration 5 --amplitude 0.5 --seed 42 | cps play
 ```
 
 ### 3. Apply a 4th-order lowpass at 1 kHz
@@ -229,8 +253,7 @@ cps generate --type pink --duration 5 --amplitude 0.5 --seed 42 \
 ```sh
 cps generate --type white --duration 3 \
   | cps filter --shape lowpass --cutoff 1000 \
-  | tail -c +13 \
-  | play -t raw -r 44100 -e float -b 32 -c 1 -
+  | cps play
 ```
 
 ### 4. Highpass filter to remove DC and rumble (< 80 Hz)
@@ -238,8 +261,7 @@ cps generate --type white --duration 3 \
 ```sh
 cps generate --type pink --duration 4 \
   | cps filter --shape highpass --cutoff 80 --order 6 \
-  | tail -c +13 \
-  | play -t raw -r 44100 -e float -b 32 -c 1 -
+  | cps play
 ```
 
 ### 5. Notch filter — remove 50 Hz mains hum
@@ -247,8 +269,7 @@ cps generate --type pink --duration 4 \
 ```sh
 cps generate --type sine --freq 50 --duration 2 \
   | cps filter --shape bandstop --cutoff-low 48 --cutoff-high 52 --order 4 \
-  | tail -c +13 \
-  | play -t raw -r 44100 -e float -b 32 -c 1 -
+  | cps play
 ```
 
 ### 6. Bandpass filter — isolate a frequency band (800–1200 Hz)
@@ -256,8 +277,7 @@ cps generate --type sine --freq 50 --duration 2 \
 ```sh
 cps generate --type white --duration 3 \
   | cps filter --shape bandpass --cutoff-low 800 --cutoff-high 1200 --order 4 \
-  | tail -c +13 \
-  | play -t raw -r 44100 -e float -b 32 -c 1 -
+  | cps play
 ```
 
 ### 7. Cascaded filters — LP then HP acts as a bandpass
@@ -266,8 +286,7 @@ cps generate --type white --duration 3 \
 cps generate --type white --duration 3 \
   | cps filter --shape lowpass  --cutoff 4000 --order 4 \
   | cps filter --shape highpass --cutoff  200 --order 4 \
-  | tail -c +13 \
-  | play -t raw -r 44100 -e float -b 32 -c 1 -
+  | cps play
 ```
 
 ### 8. Chirp sweep through a lowpass filter
@@ -275,8 +294,7 @@ cps generate --type white --duration 3 \
 ```sh
 cps generate --type chirp --freq-start 100 --freq-end 10000 --duration 5 \
   | cps filter --shape lowpass --cutoff 2000 --order 6 \
-  | tail -c +13 \
-  | play -t raw -r 44100 -e float -b 32 -c 1 -
+  | cps play
 ```
 
 ### 9. Higher sample rate (48 kHz) and higher-order filter
@@ -284,8 +302,7 @@ cps generate --type chirp --freq-start 100 --freq-end 10000 --duration 5 \
 ```sh
 cps generate --type white --duration 2 --sample-rate 48000 \
   | cps filter --shape lowpass --cutoff 8000 --order 8 \
-  | tail -c +13 \
-  | play -t raw -r 48000 -e float -b 32 -c 1 -
+  | cps play
 ```
 
 ### 10. FIR lowpass — linear phase, useful for signal analysis
@@ -293,8 +310,7 @@ cps generate --type white --duration 2 --sample-rate 48000 \
 ```sh
 cps generate --type white --duration 3 \
   | cps filter --type firwin --shape lowpass --cutoff 2000 --taps 201 \
-  | tail -c +13 \
-  | play -t raw -r 44100 -e float -b 32 -c 1 -
+  | cps play
 ```
 
 ### 11. Save output to a file instead of playing
@@ -326,8 +342,7 @@ cps generate --type sine --freq 440 --duration 0.001 | xxd | head -2
 cps generate --type white --duration 5 --amplitude 0.8 \
   | cps filter --shape bandstop --cutoff-low 990 --cutoff-high 1010 --order 4 \
   | cps filter --shape lowpass  --cutoff 4000 --order 4 \
-  | tail -c +13 \
-  | play -t raw -r 44100 -e float -b 32 -c 1 -
+  | cps play
 ```
 
 ### 15. Reproduce identical noise with a fixed seed
@@ -345,11 +360,9 @@ diff a.cps b.cps  # no output — identical
 # Compare 2nd-order vs 8th-order lowpass on a tone just above cutoff:
 cps generate --type sine --freq 1500 --duration 2 \
   | cps filter --shape lowpass --cutoff 1000 --order 2 \
-  | tail -c +13 \
-  | play -t raw -r 44100 -e float -b 32 -c 1 -
+  | cps play
 
 cps generate --type sine --freq 1500 --duration 2 \
   | cps filter --shape lowpass --cutoff 1000 --order 8 \
-  | tail -c +13 \
-  | play -t raw -r 44100 -e float -b 32 -c 1 -
+  | cps play
 ```

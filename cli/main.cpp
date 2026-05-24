@@ -1,5 +1,6 @@
 #include "generate.hpp"
 #include "filter.hpp"
+#include "play.hpp"
 #include <iostream>
 #include <string_view>
 #ifdef _WIN32
@@ -28,6 +29,8 @@ int main(int argc, char** argv)
         } else if (cmd == "filter") {
             auto opts = cps::cli::parse_filter_args(argc, argv);
             cps::cli::filter_stream(std::cin, std::cout, opts);
+        } else if (cmd == "play") {
+            cps::cli::play_stream(std::cin);
         } else {
             std::cerr << "cps: unknown command '" << cmd << "'\n";
             return 1;
