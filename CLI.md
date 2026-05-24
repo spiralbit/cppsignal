@@ -13,6 +13,7 @@ cps generate [options] | cps filter [options] | <audio-player>
 - [Exit codes](#exit-codes)
 - [cps generate](#cps-generate)
 - [cps filter](#cps-filter)
+- [Playing audio with external tools](#playing-audio-with-external-tools)
 - [Examples](#examples)
 
 ---
@@ -187,12 +188,31 @@ Windowed-sinc FIR filter using a Hamming window.
 
 ---
 
+## Playing audio with external tools
+
+`cps` streams begin with a 12-byte binary header (see [Wire format](#wire-format)). External players such as SoX `play` expect raw samples with no header, so the header must be stripped before passing the stream to them.
+
+Use `tail -c +13` in a bash/Git Bash pipeline to skip the first 12 bytes:
+
+```sh
+cps generate --type sine --freq 440 --duration 1 \
+  | tail -c +13 \
+  | play -t raw -r 44100 -e float -b 32 -c 1 -
+```
+
+`cps`-to-`cps` pipes (e.g. `generate | filter`) do not need this step — each stage reads and re-writes the header automatically.
+
+> **Windows note**: `cps` opens stdin/stdout in binary mode at startup so that Windows text-mode pipe conversion (`0x0A` → `0x0D 0x0A`) does not corrupt float32 sample data. Make sure you are running a binary built from the current source.
+
+---
+
 ## Examples
 
 ### 1. Generate a 1-second 440 Hz sine and play it
 
 ```sh
 cps generate --type sine --freq 440 --duration 1 \
+  | tail -c +13 \
   | play -t raw -r 44100 -e float -b 32 -c 1 -
 ```
 
@@ -200,6 +220,7 @@ cps generate --type sine --freq 440 --duration 1 \
 
 ```sh
 cps generate --type pink --duration 5 --amplitude 0.5 --seed 42 \
+  | tail -c +13 \
   | play -t raw -r 44100 -e float -b 32 -c 1 -
 ```
 
@@ -208,6 +229,7 @@ cps generate --type pink --duration 5 --amplitude 0.5 --seed 42 \
 ```sh
 cps generate --type white --duration 3 \
   | cps filter --shape lowpass --cutoff 1000 \
+  | tail -c +13 \
   | play -t raw -r 44100 -e float -b 32 -c 1 -
 ```
 
@@ -216,6 +238,7 @@ cps generate --type white --duration 3 \
 ```sh
 cps generate --type pink --duration 4 \
   | cps filter --shape highpass --cutoff 80 --order 6 \
+  | tail -c +13 \
   | play -t raw -r 44100 -e float -b 32 -c 1 -
 ```
 
@@ -224,6 +247,7 @@ cps generate --type pink --duration 4 \
 ```sh
 cps generate --type sine --freq 50 --duration 2 \
   | cps filter --shape bandstop --cutoff-low 48 --cutoff-high 52 --order 4 \
+  | tail -c +13 \
   | play -t raw -r 44100 -e float -b 32 -c 1 -
 ```
 
@@ -232,6 +256,7 @@ cps generate --type sine --freq 50 --duration 2 \
 ```sh
 cps generate --type white --duration 3 \
   | cps filter --shape bandpass --cutoff-low 800 --cutoff-high 1200 --order 4 \
+  | tail -c +13 \
   | play -t raw -r 44100 -e float -b 32 -c 1 -
 ```
 
@@ -241,6 +266,7 @@ cps generate --type white --duration 3 \
 cps generate --type white --duration 3 \
   | cps filter --shape lowpass  --cutoff 4000 --order 4 \
   | cps filter --shape highpass --cutoff  200 --order 4 \
+  | tail -c +13 \
   | play -t raw -r 44100 -e float -b 32 -c 1 -
 ```
 
@@ -249,6 +275,7 @@ cps generate --type white --duration 3 \
 ```sh
 cps generate --type chirp --freq-start 100 --freq-end 10000 --duration 5 \
   | cps filter --shape lowpass --cutoff 2000 --order 6 \
+  | tail -c +13 \
   | play -t raw -r 44100 -e float -b 32 -c 1 -
 ```
 
@@ -257,6 +284,7 @@ cps generate --type chirp --freq-start 100 --freq-end 10000 --duration 5 \
 ```sh
 cps generate --type white --duration 2 --sample-rate 48000 \
   | cps filter --shape lowpass --cutoff 8000 --order 8 \
+  | tail -c +13 \
   | play -t raw -r 48000 -e float -b 32 -c 1 -
 ```
 
@@ -265,6 +293,7 @@ cps generate --type white --duration 2 --sample-rate 48000 \
 ```sh
 cps generate --type white --duration 3 \
   | cps filter --type firwin --shape lowpass --cutoff 2000 --taps 201 \
+  | tail -c +13 \
   | play -t raw -r 44100 -e float -b 32 -c 1 -
 ```
 
@@ -275,7 +304,14 @@ cps generate --type sine --freq 261.63 --duration 2 > middle_c.cps
 cps filter --shape lowpass --cutoff 5000 < middle_c.cps > filtered.cps
 ```
 
-### 12. Inspect a stream header with `xxd`
+### 12. Play a saved `.cps` file
+
+```sh
+# Strip the 12-byte header, then pass raw samples to the player:
+tail -c +13 middle_c.cps | play -t raw -r 44100 -e float -b 32 -c 1 -
+```
+
+### 13. Inspect a stream header with `xxd`
 
 ```sh
 cps generate --type sine --freq 440 --duration 0.001 | xxd | head -2
@@ -284,16 +320,17 @@ cps generate --type sine --freq 440 --duration 0.001 | xxd | head -2
 #           magic  ver fmt  ch=1  sr=44100 (LE)
 ```
 
-### 13. Three-stage pipeline: generate → notch → lowpass → play
+### 14. Three-stage pipeline: generate → notch → lowpass → play
 
 ```sh
 cps generate --type white --duration 5 --amplitude 0.8 \
   | cps filter --shape bandstop --cutoff-low 990 --cutoff-high 1010 --order 4 \
   | cps filter --shape lowpass  --cutoff 4000 --order 4 \
+  | tail -c +13 \
   | play -t raw -r 44100 -e float -b 32 -c 1 -
 ```
 
-### 14. Reproduce identical noise with a fixed seed
+### 15. Reproduce identical noise with a fixed seed
 
 ```sh
 # Both commands produce byte-for-byte identical output:
@@ -302,15 +339,17 @@ cps generate --type white --duration 1 --seed 1234 > b.cps
 diff a.cps b.cps  # no output — identical
 ```
 
-### 15. Steeper rolloff with higher filter order
+### 16. Steeper rolloff with higher filter order
 
 ```sh
 # Compare 2nd-order vs 8th-order lowpass on a tone just above cutoff:
 cps generate --type sine --freq 1500 --duration 2 \
   | cps filter --shape lowpass --cutoff 1000 --order 2 \
+  | tail -c +13 \
   | play -t raw -r 44100 -e float -b 32 -c 1 -
 
 cps generate --type sine --freq 1500 --duration 2 \
   | cps filter --shape lowpass --cutoff 1000 --order 8 \
+  | tail -c +13 \
   | play -t raw -r 44100 -e float -b 32 -c 1 -
 ```
