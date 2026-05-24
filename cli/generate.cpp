@@ -38,6 +38,8 @@ static std::vector<float> pink_noise_generate(std::size_t n, double amplitude, u
 std::size_t generate(std::ostream& out, const GenerateOptions& opts)
 {
     const std::size_t n = static_cast<std::size_t>(opts.duration * opts.sample_rate);
+    if (n == 0)
+        throw std::runtime_error("duration × sample_rate < 1 — zero samples to generate");
     auto t = cps::linspace(0.0, static_cast<double>(n - 1) / opts.sample_rate, n);
 
     StreamHeader hdr;

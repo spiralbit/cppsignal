@@ -79,10 +79,22 @@ static cps::SOS butter_bandstop_sos(int N, double fc1, double fc2, double fs)
     }
     // Odd N: one real LP pole at exp(j*pi) = -1
     if (N % 2 == 1) {
-        const Cx bp   = Cx{-BW, 0.0};
-        const Cx disc = std::sqrt(bp * bp - Cx{4.0 * W0 * W0, 0.0});
-        const Cx s1   = (bp + disc) / 2.0;
-        add_biquad((kbt + s1) / (kbt - s1));
+        // discriminant = BW^2 - 4*W0^2
+        // < 0 (narrow band): two complex-conjugate BS poles — one biquad suffices
+        // > 0 (wide band):   two distinct real BS poles — build biquad explicitly
+        const double discriminant = BW * BW - 4.0 * W0 * W0;
+        if (discriminant >= 0.0) {
+            const double d  = std::sqrt(discriminant);
+            const double s1 = (-BW + d) / 2.0;
+            const double s2 = (-BW - d) / 2.0;
+            const double z1 = (kbt + s1) / (kbt - s1);
+            const double z2 = (kbt + s2) / (kbt - s2);
+            sos.push_back({1.0, -2.0 * cos_th0, 1.0, 1.0, -(z1 + z2), z1 * z2});
+        } else {
+            const Cx bp   = Cx{-BW, 0.0};
+            const Cx disc = std::sqrt(bp * bp - Cx{4.0 * W0 * W0, 0.0});
+            add_biquad((kbt + (bp + disc) / 2.0) / (kbt - (bp + disc) / 2.0));
+        }
     }
 
     // Step 6: normalise so DC gain = 1
@@ -129,10 +141,20 @@ static cps::SOS butter_bandpass_sos(int N, double fc1, double fc2, double fs)
         process_bp({std::cos(angle), std::sin(angle)});
     }
     if (N % 2 == 1) {
-        const Cx bp   = Cx{-BW, 0.0};
-        const Cx disc = std::sqrt(bp * bp - Cx{4.0 * W0 * W0, 0.0});
-        const Cx s1   = (bp + disc) / 2.0;
-        add_biquad((kbt + s1) / (kbt - s1));
+        const double discriminant = BW * BW - 4.0 * W0 * W0;
+        if (discriminant >= 0.0) {
+            const double d  = std::sqrt(discriminant);
+            const double s1 = (-BW + d) / 2.0;
+            const double s2 = (-BW - d) / 2.0;
+            const double z1 = (kbt + s1) / (kbt - s1);
+            const double z2 = (kbt + s2) / (kbt - s2);
+            sos.push_back({1.0, 0.0, -1.0, 1.0, -(z1 + z2), z1 * z2});
+        } else {
+            const Cx bp   = Cx{-BW, 0.0};
+            const Cx disc = std::sqrt(bp * bp - Cx{4.0 * W0 * W0, 0.0});
+            const Cx s1   = (bp + disc) / 2.0;
+            add_biquad((kbt + s1) / (kbt - s1));
+        }
     }
 
     // Normalise to unity gain at the digital centre frequency
@@ -246,8 +268,12 @@ FilterOptions parse_filter_args(int argc, char** argv)
     if (opts.shape == FilterShape::Bandpass || opts.shape == FilterShape::Bandstop) {
         if (!cutoff_low_set || !cutoff_high_set)
             throw std::invalid_argument("--cutoff-low and --cutoff-high required for bandpass/bandstop");
+        if (opts.cutoff_low <= 0.0)
+            throw std::invalid_argument("--cutoff-low must be > 0");
         if (opts.cutoff_low >= opts.cutoff_high)
             throw std::invalid_argument("--cutoff-low must be less than --cutoff-high");
+        if (sample_rate_hint && opts.cutoff_high >= *sample_rate_hint / 2.0)
+            throw std::invalid_argument("--cutoff-high exceeds Nyquist frequency");
     }
 
     return opts;

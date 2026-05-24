@@ -253,7 +253,18 @@ TEST_CASE("generate pink noise has more spectral energy in low frequencies than 
     CHECK(low_energy > high_energy);
 }
 
-// ── Argument parsing (RED — parse_generate_args not yet implemented) ───────────
+TEST_CASE("generate throws when duration * sample_rate produces zero samples", "[cli][generate]")
+{
+    GenerateOptions opts;
+    opts.type        = GenerateType::Sine;
+    opts.freq        = 10.0;
+    opts.duration    = 0.001;
+    opts.sample_rate = 1;  // 0.001 * 1 = 0 samples
+    std::ostringstream buf;
+    CHECK_THROWS_AS(generate(buf, opts), std::runtime_error);
+}
+
+// ── Argument parsing ──────────────────────────────────────────────────────────
 
 TEST_CASE("parse_generate_args throws on zero duration", "[cli][generate][args]")
 {

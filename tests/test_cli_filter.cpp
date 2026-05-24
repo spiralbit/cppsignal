@@ -302,13 +302,59 @@ TEST_CASE("filter_stream throws on empty input", "[cli][filter][error]")
     CHECK_THROWS_AS(filter_stream(in, out, fopts), std::runtime_error);
 }
 
-// ── Argument parsing (RED — parse_filter_args not yet implemented) ─────────────
+// ── Wide-band odd-N (exercises distinct-real-pole path) ──────────────────────
+
+TEST_CASE("bandstop order 3 wide-band: tone within stopband is attenuated", "[cli][filter][bs]")
+{
+    // BW^2 > 4*W0^2: fc1=100, fc2=10000 -> W0~1000 Hz geometric mean, BW>>W0
+    FilterOptions fopts;
+    fopts.shape       = FilterShape::Bandstop;
+    fopts.cutoff_low  = 100.0;
+    fopts.cutoff_high = 10000.0;
+    fopts.order       = 3;
+
+    auto [hdr, samples] = sine_through_filter(1000.0, 44100, fopts);
+    CHECK(steady_rms(samples, hdr.sample_rate) < 0.3);
+}
+
+TEST_CASE("bandpass order 3 wide-band: tone within passband passes", "[cli][filter][bp]")
+{
+    FilterOptions fopts;
+    fopts.shape       = FilterShape::Bandpass;
+    fopts.cutoff_low  = 100.0;
+    fopts.cutoff_high = 10000.0;
+    fopts.order       = 3;
+
+    auto [hdr, samples] = sine_through_filter(1000.0, 44100, fopts);
+    CHECK(steady_rms(samples, hdr.sample_rate) > 0.1);
+}
+
+// ── Argument parsing ──────────────────────────────────────────────────────────
 
 TEST_CASE("parse_filter_args throws when no cutoff is given for lowpass", "[cli][filter][args]")
 {
     const char* argv[] = {"cps", "filter", "--shape", "lowpass"};
     CHECK_THROWS_AS(
         parse_filter_args(4, const_cast<char**>(argv)),
+        std::invalid_argument);
+}
+
+TEST_CASE("parse_filter_args throws when bandpass cutoff-low is zero", "[cli][filter][args]")
+{
+    const char* argv[] = {"cps", "filter", "--shape", "bandpass",
+                          "--cutoff-low", "0", "--cutoff-high", "1000"};
+    CHECK_THROWS_AS(
+        parse_filter_args(8, const_cast<char**>(argv)),
+        std::invalid_argument);
+}
+
+TEST_CASE("parse_filter_args throws when bandstop cutoff-high exceeds Nyquist", "[cli][filter][args]")
+{
+    const char* argv[] = {"cps", "filter", "--shape", "bandstop",
+                          "--cutoff-low", "100", "--cutoff-high", "25000",
+                          "--sample-rate", "44100"};
+    CHECK_THROWS_AS(
+        parse_filter_args(10, const_cast<char**>(argv)),
         std::invalid_argument);
 }
 
