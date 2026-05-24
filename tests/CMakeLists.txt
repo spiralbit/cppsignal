@@ -26,6 +26,21 @@ foreach(t ${CPS_TESTS})
 endforeach()
 
 # FFTW backend tests — only built when CPS_ENABLE_FFTW=ON
+# CLI tests — link against cps_cli instead of cppsignal directly
+set(CPS_CLI_TESTS
+    test_cli_format
+    test_cli_generate
+    test_cli_filter
+    test_cli_pipeline
+)
+
+foreach(t ${CPS_CLI_TESTS})
+    add_executable(${t} ${t}.cpp)
+    target_link_libraries(${t} PRIVATE cps_cli Catch2::Catch2WithMain)
+    target_compile_features(${t} PRIVATE cxx_std_20)
+    add_test(NAME ${t} COMMAND ${t})
+endforeach()
+
 if(CPS_ENABLE_FFTW)
     add_executable(test_fftw_backend test_fftw_backend.cpp)
     target_link_libraries(test_fftw_backend PRIVATE cppsignal::cppsignal Catch2::Catch2WithMain)

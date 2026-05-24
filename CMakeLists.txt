@@ -305,6 +305,13 @@ endif()
     endif()
 endif()
 
+# ── CLI ──────────────────────────────────────────────────────────────────────
+option(CPS_BUILD_CLI "Build the cps command-line tool" ON)
+if(CPS_BUILD_CLI)
+    add_subdirectory(cli)
+    message(STATUS "cppsignal: CLI enabled")
+endif()
+
 # ── Examples ─────────────────────────────────────────────────────────────────
 option(CPS_BUILD_EXAMPLES "Build cppsignal examples" OFF)
 if(CPS_BUILD_EXAMPLES)
